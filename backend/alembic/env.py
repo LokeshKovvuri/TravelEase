@@ -7,11 +7,13 @@ from alembic import context
 
 import os
 from dotenv import load_dotenv
+from app.models.hotel import Hotel
 
 load_dotenv()
 
 from app.database.base import Base
 from app.models.user import User
+from app.models.hotel import Hotel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
