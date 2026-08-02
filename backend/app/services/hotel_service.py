@@ -64,3 +64,25 @@ class HotelService:
         HotelRepository.delete(db, hotel)
 
         return True
+
+    @staticmethod
+    def search(
+        db,
+        city=None,
+        country=None,
+        min_price=None,
+        max_price=None,
+        rating=None,
+        page=1,
+        limit=10,
+    ):
+        return HotelRepository.search(
+            db,
+            city,
+            country,
+            min_price,
+            max_price,
+            rating,
+            page,
+            limit,
+    )

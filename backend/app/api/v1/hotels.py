@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.schemas.hotel import HotelCreate, HotelResponse
 from app.services.hotel_service import HotelService
+from typing import Optional
+from fastapi import Query
 
 router = APIRouter(
     prefix="/api/v1/hotels",
@@ -80,3 +82,47 @@ def delete_hotel(
     return {
         "message": "Hotel deleted successfully"
     }
+
+@router.get("/", response_model=list[HotelResponse])
+def get_hotels(
+    city: Optional[str] = Query(None),
+    country: Optional[str] = Query(None),
+    min_price: Optional[float] = Query(None),
+    max_price: Optional[float] = Query(None),
+    rating: Optional[float] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return HotelService.search(
+        db,
+        city,
+        country,
+        min_price,
+        max_price,
+        rating,
+        page,
+        limit,
+    )
+
+@router.get("/", response_model=list[HotelResponse])
+def get_hotels(
+    city: Optional[str] = Query(None),
+    country: Optional[str] = Query(None),
+    min_price: Optional[float] = Query(None),
+    max_price: Optional[float] = Query(None),
+    rating: Optional[float] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    return HotelService.search(
+        db,
+        city,
+        country,
+        min_price,
+        max_price,
+        rating,
+        page,
+        limit,
+    )
