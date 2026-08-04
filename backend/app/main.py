@@ -8,6 +8,9 @@ from app.api.v1.bookings import router as bookings_router
 from app.api.v1.payments import router as payments_router
 from app.api.v1.reviews import router as reviews_router
 from app.api.v1.profile import router as profile_router
+from app.api.v1.wishlist import router as wishlist_router
+
+
 app = FastAPI(
     title="TravelEase API",
     description="Travel Booking Platform API",
@@ -23,6 +26,7 @@ app.include_router(bookings_router)
 app.include_router(payments_router)
 app.include_router(reviews_router)
 app.include_router(profile_router)
+app.include_router(wishlist_router)
 
 @app.get("/")
 async def root():
