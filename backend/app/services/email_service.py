@@ -1,0 +1,39 @@
+import os
+import smtplib
+from email.message import EmailMessage
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+class EmailService:
+
+    @staticmethod
+    def send_email(
+        to_email: str,
+        subject: str,
+        body: str,
+    ):
+
+        email = EmailMessage()
+
+        email["Subject"] = subject
+        email["From"] = os.getenv("EMAIL_FROM")
+        email["To"] = to_email
+
+        email.set_content(body)
+
+        with smtplib.SMTP(
+            os.getenv("SMTP_SERVER"),
+            int(os.getenv("SMTP_PORT")),
+        ) as smtp:
+
+            smtp.starttls()
+
+            smtp.login(
+                os.getenv("EMAIL_USERNAME"),
+                os.getenv("EMAIL_PASSWORD"),
+            )
+
+            smtp.send_message(email)
