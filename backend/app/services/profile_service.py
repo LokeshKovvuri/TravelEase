@@ -2,7 +2,14 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.repositories.profile_repository import ProfileRepository
-from app.schemas.profile import ProfileUpdate
+from app.schemas.profile import ProfileUpdate 
+from fastapi import HTTPException
+
+from app.core.security import (
+    verify_password,
+    hash_password,
+)
+from app.schemas.profile import ChangePasswordRequest
 
 
 class ProfileService:
@@ -17,6 +24,7 @@ class ProfileService:
             current_user.id,
         )
 
+    
     @staticmethod
     def update_profile(
         db: Session,
@@ -69,4 +77,34 @@ class ProfileService:
         return ProfileRepository.get_reviews(
             db,
             current_user.id,
+        )
+
+    @staticmethod
+    def change_password(
+        db: Session,
+        current_user: User,
+        data: ChangePasswordRequest,
+    ):
+
+        user = ProfileRepository.get_by_id(
+            db,
+            current_user.id,
+       )
+
+        if not verify_password(
+           data.old_password,
+           user.password,
+       ):
+           raise HTTPException(
+               status_code=400,
+               detail="Old password is incorrect",
+           )
+
+        user.password = hash_password(
+           data.new_password
+        )
+
+        return ProfileRepository.update(
+             db,
+             user,
         )

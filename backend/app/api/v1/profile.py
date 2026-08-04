@@ -7,6 +7,7 @@ from app.models.user import User
 from app.schemas.profile import (
     ProfileResponse,
     ProfileUpdate,
+    ChangePasswordRequest,
 )
 from app.services.profile_service import ProfileService
 
@@ -76,3 +77,19 @@ def my_reviews(
         db,
         current_user,
     )
+
+@router.put("/change-password")
+def change_password(
+    password_data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ProfileService.change_password(
+        db,
+        current_user,
+        password_data,
+    )
+
+    return {
+        "message": "Password changed successfully"
+    }
