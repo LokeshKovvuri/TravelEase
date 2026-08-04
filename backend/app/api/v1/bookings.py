@@ -6,6 +6,9 @@ from app.database.session import get_db
 from app.models.user import User
 from app.schemas.booking import BookingCreate, BookingUpdate, BookingResponse
 from app.services.booking_service import BookingService
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+
+from app.services.email_service import EmailService
 
 router = APIRouter(
     prefix="/api/v1/bookings",
@@ -16,18 +19,32 @@ router = APIRouter(
 @router.post("/", response_model=BookingResponse)
 def create_booking(
     booking: BookingCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     try:
-        return BookingService.create(
+
+        new_booking = BookingService.create(
             db,
             current_user.id,
             booking,
         )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
+        background_tasks.add_task(
+            EmailService.send_booking_confirmation,
+            current_user.email,
+            current_user.first_name,
+            new_booking,
+        )
+
+        return new_booking
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
 
 @router.get("/", response_model=list[BookingResponse])
 def get_bookings(db: Session = Depends(get_db)):

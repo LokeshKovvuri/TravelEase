@@ -37,3 +37,37 @@ class EmailService:
             )
 
             smtp.send_message(email)
+
+    @staticmethod
+    def send_booking_confirmation(
+        to_email: str,
+        customer_name: str,
+        booking,
+   ):
+        subject = "TravelEase - Booking Confirmation"
+
+        body = f"""
+    Hello {customer_name},
+
+    Your booking has been confirmed successfully!
+
+    Booking Details
+    ----------------------------
+    Booking ID : {booking.id}
+    Room ID    : {booking.room_id}
+    Check-in   : {booking.check_in}
+    Check-out  : {booking.check_out}
+    Guests     : {booking.guests}
+    Total Price: ₹{booking.total_price}
+    Status     : {booking.status}
+
+    Thank you for choosing TravelEase.
+
+    Have a wonderful stay!
+     """
+
+        EmailService.send_email(
+            to_email=to_email,
+            subject=subject,
+            body=body,
+       )
