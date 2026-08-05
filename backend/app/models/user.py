@@ -32,3 +32,9 @@ class User(Base):
         server_default=func.now(),
         onupdate=func.now()
     )
+
+    role = Column(
+        String(20),
+        nullable=False,
+        server_default="USER"
+  )
