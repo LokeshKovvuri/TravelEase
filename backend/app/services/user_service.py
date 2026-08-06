@@ -41,7 +41,9 @@ class UserService:
             raise Exception("Invalid email or password")
 
         token = create_access_token(
-            {"sub": user.email}
+            {"sub": user.email,
+             "role":user.role,
+             }
         )
 
         return {
