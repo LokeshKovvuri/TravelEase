@@ -1,44 +1,41 @@
-import { Button, Container, Typography } from "@mui/material";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { Grid, Typography } from "@mui/material";
+
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import StatCard from "../../components/dashboard/StatCard";
 
 function Dashboard() {
-
-  const { logout } = useAuth();
-
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
-
   return (
-    <Container sx={{ mt: 5 }}>
+    <DashboardLayout>
 
       <Typography
-        variant="h3"
+        variant="h4"
+        fontWeight="bold"
         gutterBottom
       >
-        TravelEase Dashboard
+        Welcome Back 👋
       </Typography>
 
-      <Typography
-        variant="h6"
-        sx={{ mb: 4 }}
-      >
-        Welcome to TravelEase
-      </Typography>
+      <Grid container spacing={3}>
 
-      <Button
-        variant="contained"
-        color="error"
-        onClick={handleLogout}
-      >
-        Logout
-      </Button>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard title="Hotels" value="24" />
+        </Grid>
 
-    </Container>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard title="Bookings" value="8" />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard title="Wishlist" value="12" />
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard title="Reviews" value="15" />
+        </Grid>
+
+      </Grid>
+
+    </DashboardLayout>
   );
 }
 
