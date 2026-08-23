@@ -42,7 +42,7 @@ function Login() {
         response.access_token
       );
 
-      navigate("/dashboard");
+      navigate("/home");
 
     } catch (err) {
       console.error(err);

@@ -38,7 +38,8 @@ function Login() {
 
       await login(email, password);
 
-      navigate("/dashboard");
+      // Redirect to the new TravelEase home page
+      navigate("/home");
 
     } catch (err) {
       console.error(err);
@@ -87,7 +88,10 @@ function Login() {
             </Typography>
 
             {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
+              <Alert
+                severity="error"
+                sx={{ mb: 2 }}
+              >
                 {error}
               </Alert>
             )}
@@ -97,7 +101,9 @@ function Login() {
               label="Email"
               margin="normal"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) =>
+                setEmail(e.target.value)
+              }
             />
 
             <TextField
@@ -106,7 +112,9 @@ function Login() {
               type="password"
               margin="normal"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) =>
+                setPassword(e.target.value)
+              }
             />
 
             <Button
@@ -117,7 +125,10 @@ function Login() {
               onClick={handleLogin}
             >
               {loading ? (
-                <CircularProgress size={24} color="inherit" />
+                <CircularProgress
+                  size={24}
+                  color="inherit"
+                />
               ) : (
                 "Login"
               )}
