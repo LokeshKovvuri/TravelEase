@@ -5,3 +5,8 @@ from app.models.booking import Booking
 from app.models.payment import Payment
 from app.models.review import Review
 from app.models.wishlist import Wishlist
+
+from app.models.flight import Flight
+from app.models.train import Train
+from app.models.bus import Bus
+from app.models.cab import Cab

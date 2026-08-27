@@ -12,6 +12,11 @@ from app.api.v1.profile import router as profile_router
 from app.api.v1.wishlist import router as wishlist_router
 from app.api.v1.email import router as email_router
 from app.api.v1.invoice import router as invoice_router
+from app.api.v1.invoices import router as invoice_router
+from app.api.v1.flights import router as flight_router
+from app.api.v1.trains import router as train_router
+from app.api.v1.buses import router as bus_router
+from app.api.v1.cabs import router as cab_router
 
 app = FastAPI(
     title="TravelEase API",
@@ -43,6 +48,11 @@ app.include_router(profile_router)
 app.include_router(wishlist_router)
 app.include_router(email_router)
 app.include_router(invoice_router)
+app.include_router(invoice_router)
+app.include_router(flight_router)
+app.include_router(train_router)
+app.include_router(bus_router)
+app.include_router(cab_router)
 
 @app.get("/")
 async def root():
