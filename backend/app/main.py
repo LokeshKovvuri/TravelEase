@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import settings
+
 from app.api.v1.auth import router as auth_router
 from app.api.v1.users import router as users_router
 from app.api.v1.hotels import router as hotels_router
@@ -11,15 +13,16 @@ from app.api.v1.reviews import router as reviews_router
 from app.api.v1.profile import router as profile_router
 from app.api.v1.wishlist import router as wishlist_router
 from app.api.v1.email import router as email_router
-from app.api.v1.invoice import router as invoice_router
+#from app.api.v1.invoice import router as invoice_router##
 from app.api.v1.invoices import router as invoice_router
 from app.api.v1.flights import router as flight_router
 from app.api.v1.trains import router as train_router
 from app.api.v1.buses import router as bus_router
 from app.api.v1.cabs import router as cab_router
+from app.api.v1.ai import router as ai_router
 
 app = FastAPI(
-    title="TravelEase API",
+    title=settings.project_name,
     description="Travel Booking Platform API",
     version="1.0.0"
 )
@@ -27,9 +30,7 @@ app = FastAPI(
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,11 +49,12 @@ app.include_router(profile_router)
 app.include_router(wishlist_router)
 app.include_router(email_router)
 app.include_router(invoice_router)
-app.include_router(invoice_router)
+#app.include_router(invoice_router)#
 app.include_router(flight_router)
 app.include_router(train_router)
 app.include_router(bus_router)
 app.include_router(cab_router)
+app.include_router(ai_router)
 
 @app.get("/")
 async def root():

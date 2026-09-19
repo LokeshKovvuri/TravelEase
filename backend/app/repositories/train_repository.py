@@ -59,8 +59,8 @@ class TrainRepository:
         return (
             db.query(Train)
             .filter(
-                Train.origin == origin,
-                Train.destination == destination,
+                Train.origin.ilike(f"%{origin.strip()}%"),
+                Train.destination.ilike(f"%{destination.strip()}%"),
             )
             .order_by(Train.departure_time)
             .all()

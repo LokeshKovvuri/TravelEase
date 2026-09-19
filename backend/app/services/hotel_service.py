@@ -20,6 +20,9 @@ class HotelService:
             rating=hotel.rating,
             image_url=hotel.image_url,
             available_rooms=hotel.available_rooms,
+
+            latitude=hotel.latitude,
+            longitude=hotel.longitude,
         )
 
         return HotelRepository.create(db, new_hotel)
@@ -33,25 +36,31 @@ class HotelService:
         return HotelRepository.get_by_id(db, hotel_id)
 
     @staticmethod
-    def update(db: Session, hotel_id: int, hotel_data: HotelCreate):
+    def update(
+        db: Session,
+        hotel_id: int,
+        hotel_data: HotelCreate
+    ):
 
-      hotel = HotelRepository.get_by_id(db, hotel_id)
+        hotel = HotelRepository.get_by_id(db, hotel_id)
 
-      if hotel is None:
-         return None
+        if hotel is None:
+            return None
 
-      hotel.name = hotel_data.name
-      hotel.description = hotel_data.description
-      hotel.city = hotel_data.city
-      hotel.country = hotel_data.country
-      hotel.address = hotel_data.address
-      hotel.price_per_night = hotel_data.price_per_night
-      hotel.rating = hotel_data.rating
-      hotel.image_url = hotel_data.image_url
-      hotel.available_rooms = hotel_data.available_rooms
+        hotel.name = hotel_data.name
+        hotel.description = hotel_data.description
+        hotel.city = hotel_data.city
+        hotel.country = hotel_data.country
+        hotel.address = hotel_data.address
+        hotel.price_per_night = hotel_data.price_per_night
+        hotel.rating = hotel_data.rating
+        hotel.image_url = hotel_data.image_url
+        hotel.available_rooms = hotel_data.available_rooms
 
-      return HotelRepository.update(db, hotel)
+        hotel.latitude = hotel_data.latitude
+        hotel.longitude = hotel_data.longitude
 
+        return HotelRepository.update(db, hotel)
 
     @staticmethod
     def delete(db: Session, hotel_id: int):
@@ -59,7 +68,7 @@ class HotelService:
         hotel = HotelRepository.get_by_id(db, hotel_id)
 
         if hotel is None:
-           return False
+            return False
 
         HotelRepository.delete(db, hotel)
 
@@ -85,4 +94,57 @@ class HotelService:
             rating,
             page,
             limit,
-    )
+        )
+
+
+        # ============================================================
+    # GET HOTELS NEAR USER LOCATION
+    # ============================================================
+
+    @staticmethod
+    def get_nearby(
+        db: Session,
+        latitude: float,
+        longitude: float,
+        radius_km: float = 25,
+    ):
+        results = HotelRepository.get_nearby(
+            db=db,
+            latitude=latitude,
+            longitude=longitude,
+            radius_km=radius_km,
+        )
+
+        return [
+            {
+                **hotel.__dict__,
+                "distance_km": round(float(distance_km), 2),
+            }
+            for hotel, distance_km in results
+        ]
+
+    # ========================================================
+    # GET NEARBY HOTELS
+    # ========================================================
+
+    @staticmethod
+    def get_nearby(
+        db: Session,
+        latitude: float,
+        longitude: float,
+        radius_km: float = 25,
+    ):
+        results = HotelRepository.get_nearby(
+            db=db,
+            latitude=latitude,
+            longitude=longitude,
+            radius_km=radius_km,
+        )
+
+        return [
+            {
+                **hotel.__dict__,
+                "distance_km": round(distance_km, 2),
+            }
+            for hotel, distance_km in results
+        ]

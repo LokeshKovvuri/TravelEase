@@ -27,4 +27,23 @@ def get_current_user(
             detail="User not found"
         )
 
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="This account is inactive",
+        )
+
     return user
+
+
+def require_admin(
+    current_user: User = Depends(get_current_user),
+):
+    """Allow inventory changes only for an authenticated administrator."""
+    if current_user.role.upper() != "ADMIN":
+        raise HTTPException(
+            status_code=403,
+            detail="Administrator access is required",
+        )
+
+    return current_user

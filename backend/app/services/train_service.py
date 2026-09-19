@@ -16,9 +16,18 @@ class TrainService:
         data: TrainCreate,
     ):
 
+        origin = data.origin.strip()
+        destination = data.destination.strip()
+        train_number = data.train_number.strip().upper()
+
+        if origin.lower() == destination.lower():
+            raise Exception(
+                "Origin and destination cannot be the same"
+            )
+
         existing = TrainRepository.get_by_train_number(
             db,
-            data.train_number,
+            train_number,
         )
 
         if existing:
@@ -37,10 +46,10 @@ class TrainService:
             )
 
         train = Train(
-            train_number=data.train_number,
-            train_name=data.train_name,
-            origin=data.origin,
-            destination=data.destination,
+            train_number=train_number,
+            train_name=data.train_name.strip(),
+            origin=origin,
+            destination=destination,
             departure_time=data.departure_time,
             arrival_time=data.arrival_time,
             journey_duration=data.journey_duration,
@@ -114,12 +123,22 @@ class TrainService:
         )
 
         if "train_number" in update_data:
+            update_data["train_number"] = (
+                update_data["train_number"].strip().upper()
+            )
             existing = (
                 TrainRepository.get_by_train_number(
                     db,
                     update_data["train_number"],
                 )
             )
+
+        for field in ("train_name", "origin", "destination", "status"):
+            if field in update_data and update_data[field] is not None:
+                update_data[field] = update_data[field].strip()
+
+        if "status" in update_data:
+            update_data["status"] = update_data["status"].upper()
 
             if (
                 existing
@@ -135,6 +154,11 @@ class TrainService:
         if train.arrival_time <= train.departure_time:
             raise Exception(
                 "Arrival time must be after departure time"
+            )
+
+        if train.origin.lower() == train.destination.lower():
+            raise Exception(
+                "Origin and destination cannot be the same"
             )
 
         if train.available_seats > train.total_seats:

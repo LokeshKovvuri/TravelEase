@@ -1,24 +1,20 @@
 import {
-  createContext,
-  useContext,
   useState,
 } from "react";
 
 import {
   login as loginService,
   logout as logoutService,
-  isAuthenticated,
+  getToken,
 } from "../services/authService";
-
-
-const AuthContext = createContext(null);
+import AuthContext from "./auth-context";
 
 
 export function AuthProvider({ children }) {
 
   const [authenticated, setAuthenticated] =
     useState(() => {
-      return isAuthenticated();
+      return Boolean(getToken());
     });
 
 
@@ -26,10 +22,7 @@ export function AuthProvider({ children }) {
   // LOGIN
   // ============================================================
 
-  const login = async (
-    email,
-    password
-  ) => {
+  const login = async (email, password) => {
 
     const response =
       await loginService(
@@ -37,16 +30,14 @@ export function AuthProvider({ children }) {
         password
       );
 
-    // authService has already stored
-    // access_token in localStorage.
+    const token = getToken();
 
-    const authenticatedNow =
-      isAuthenticated();
+    if (!token) {
 
-    if (!authenticatedNow) {
       throw new Error(
-        "Login succeeded but authentication token was not saved."
+        "Authentication token was not saved."
       );
+
     }
 
     setAuthenticated(true);
@@ -64,12 +55,9 @@ export function AuthProvider({ children }) {
     logoutService();
 
     setAuthenticated(false);
+
   };
 
-
-  // ============================================================
-  // CONTEXT
-  // ============================================================
 
   return (
     <AuthContext.Provider
@@ -81,13 +69,5 @@ export function AuthProvider({ children }) {
     >
       {children}
     </AuthContext.Provider>
-  );
-}
-
-
-export function useAuth() {
-
-  return useContext(
-    AuthContext
   );
 }

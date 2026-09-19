@@ -16,7 +16,11 @@ from app.database.base import Base
 class Booking(Base):
     __tablename__ = "bookings"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
 
     user_id = Column(
         Integer,
@@ -24,22 +28,45 @@ class Booking(Base):
         nullable=False,
     )
 
+    # Hotel booking
     room_id = Column(
         Integer,
         ForeignKey("rooms.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
+    # Flight booking
+    flight_id = Column(
+        Integer,
+        ForeignKey("flights.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
+    # Hotel dates
+    check_in = Column(
+        Date,
+        nullable=True,
+    )
+
+    check_out = Column(
+        Date,
+        nullable=True,
+    )
+
+    # Number of passengers/guests
+    guests = Column(
+        Integer,
         nullable=False,
     )
 
-    check_in = Column(Date, nullable=False)
-    check_out = Column(Date, nullable=False)
-
-    guests = Column(Integer, nullable=False)
-
-    total_price = Column(Float, nullable=False)
+    total_price = Column(
+        Float,
+        nullable=False,
+    )
 
     status = Column(
         String(30),
-        default="CONFIRMED",
+        default="PENDING_PAYMENT",
         nullable=False,
     )
 
@@ -48,5 +75,15 @@ class Booking(Base):
         server_default=func.now(),
     )
 
-    user = relationship("User")
-    room = relationship("Room")
+    # Relationships
+    user = relationship(
+        "User",
+    )
+
+    room = relationship(
+        "Room",
+    )
+
+    flight = relationship(
+        "Flight",
+    )

@@ -20,7 +20,12 @@ class User(Base):
     date_of_birth = Column(Date, nullable=True)
     profile_image = Column(String(500), nullable=True)
 
-    is_active = Column(Boolean, default=True)
+    is_active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="true",
+    )
 
     created_at = Column(
         DateTime(timezone=True),

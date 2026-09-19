@@ -14,7 +14,72 @@ The backend follows a clean layered architecture using API routes, schemas, serv
 
 The frontend provides a modern, responsive travel experience with a premium dark UI, hotel discovery, search, filters, authentication, protected routes, and animated hotel cards.
 
-The project is currently under active development with the hotel discovery and authentication workflows implemented and the booking workflow being developed.
+The project is currently under active development. Hotel and flight search,
+authenticated bookings, payment checkout, invoices, and travel inventory are
+implemented; production deployment still requires configuring a payment
+provider and SMTP credentials.
+
+## Run locally
+
+The quickest full-stack option is Docker Compose:
+
+```powershell
+Copy-Item backend/.env.example backend/.env
+docker compose up --build
+```
+
+Open `http://localhost:8080`. The API is available at `http://localhost:8000`
+and its interactive documentation is at `/docs`.
+
+For manual development, copy both environment examples, start PostgreSQL, then:
+
+```powershell
+cd backend
+..\venv\Scripts\python.exe -m pip install -r requirements.txt
+alembic upgrade head
+..\venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
+
+Run backend service checks with:
+
+```powershell
+cd backend
+..\venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+## Quality pipeline
+
+The **Verify TravelEase** GitHub Actions workflow checks the frontend build,
+backend compilation and tests, migration graph, and Docker Compose
+configuration on every pull request and push to `main`. See
+[the pipeline guide](docs/PIPELINES.md) for the stage diagram, local commands,
+and where to view runs in GitHub Actions.
+
+## AI trip planner
+
+`/ai-planner` recommends hotels from the current TravelEase catalogue. It works
+without third-party credentials using a local ranking mode. To enable
+OpenAI-generated advice, set `OPENAI_API_KEY` and optionally `OPENAI_MODEL`
+in `backend/.env`; the key stays on the backend and is never sent to the
+browser.
+
+## Security and checkout
+
+- Hotel, room, flight, bus, train, and cab write APIs require an `ADMIN` role.
+- Hotel availability is calculated for the requested dates with a short-lived
+  payment hold; flight seats are released when an abandoned payment hold
+  expires.
+- `PAYMENT_PROVIDER=stripe` uses hosted Stripe Checkout. Booking confirmation
+  occurs only after Stripe sends a verified webhook to
+  `/api/v1/payments/webhooks/stripe`.
+- `PAYMENT_PROVIDER=mock` is for local development only and requires
+  `DEBUG=true` or `ALLOW_MOCK_PAYMENTS=true`. Never enable it in production.
 
 ---
 
@@ -209,6 +274,8 @@ Example availability:
 When unavailable:
 
 No rooms currently available
+```
+
 🎨 Modern UI
 
 TravelEase uses a premium dark travel interface.

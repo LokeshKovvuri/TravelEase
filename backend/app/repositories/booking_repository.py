@@ -1,5 +1,8 @@
 from datetime import date
 
+from datetime import datetime, timedelta, UTC
+
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.models.booking import Booking
@@ -77,6 +80,18 @@ class BookingRepository:
             .first()
         )
 
+    @staticmethod
+    def get_by_id_for_update(
+        db: Session,
+        booking_id: int,
+    ):
+        return (
+            db.query(Booking)
+            .filter(Booking.id == booking_id)
+            .with_for_update()
+            .first()
+        )
+
     # ============================================================
     # CHECK OVERLAPPING BOOKING
     # ============================================================
@@ -100,6 +115,55 @@ class BookingRepository:
                 Booking.check_out > check_in,
             )
             .first()
+        )
+
+    @staticmethod
+    def count_active_overlapping_bookings(
+        db: Session,
+        room_id: int,
+        check_in: date,
+        check_out: date,
+        exclude_booking_id: int | None = None,
+        payment_hold_minutes: int = 15,
+    ) -> int:
+        """Count confirmed rooms plus short-lived payment holds for a stay."""
+        hold_cutoff = datetime.now(UTC) - timedelta(
+            minutes=payment_hold_minutes
+        )
+        query = db.query(Booking).filter(
+            Booking.room_id == room_id,
+            Booking.check_in < check_out,
+            Booking.check_out > check_in,
+            or_(
+                Booking.status == "CONFIRMED",
+                and_(
+                    Booking.status == "PENDING_PAYMENT",
+                    Booking.created_at >= hold_cutoff,
+                ),
+            ),
+        )
+        if exclude_booking_id is not None:
+            query = query.filter(Booking.id != exclude_booking_id)
+        return query.count()
+
+    @staticmethod
+    def get_expired_flight_payment_holds_for_update(
+        db: Session,
+        flight_id: int,
+        payment_hold_minutes: int,
+    ) -> list[Booking]:
+        hold_cutoff = datetime.now(UTC) - timedelta(
+            minutes=payment_hold_minutes
+        )
+        return (
+            db.query(Booking)
+            .filter(
+                Booking.flight_id == flight_id,
+                Booking.status == "PENDING_PAYMENT",
+                Booking.created_at < hold_cutoff,
+            )
+            .with_for_update()
+            .all()
         )
 
     # ============================================================

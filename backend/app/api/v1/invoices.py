@@ -7,27 +7,15 @@ from fastapi.responses import StreamingResponse
 
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import (
-    get_current_user,
-)
-
-from app.database.session import (
-    get_db,
-)
+from app.api.dependencies import get_current_user
+from app.database.session import get_db
 
 from app.models.user import User
 
-from app.repositories.booking_repository import (
-    BookingRepository,
-)
+from app.repositories.booking_repository import BookingRepository
+from app.repositories.payment_repository import PaymentRepository
 
-from app.repositories.payment_repository import (
-    PaymentRepository,
-)
-
-from app.services.invoice_service import (
-    InvoiceService,
-)
+from app.services.invoice_service import InvoiceService
 
 
 router = APIRouter(
@@ -61,7 +49,6 @@ def download_booking_invoice(
     )
 
     if booking is None:
-
         raise HTTPException(
             status_code=404,
             detail="Booking not found",
@@ -72,7 +59,6 @@ def download_booking_invoice(
     # --------------------------------------------------------
 
     if booking.user_id != current_user.id:
-
         raise HTTPException(
             status_code=403,
             detail=(
@@ -85,12 +71,16 @@ def download_booking_invoice(
     # Find payment
     # --------------------------------------------------------
 
-    payment = (
-        PaymentRepository.get_by_booking_id(
-            db,
-            booking_id,
-        )
+    payment = PaymentRepository.get_by_booking_id(
+        db,
+        booking_id,
     )
+
+    if booking.status != "CONFIRMED" or not payment or payment.status != "SUCCESS":
+        raise HTTPException(
+            status_code=409,
+            detail="An invoice is available only after payment is confirmed.",
+        )
 
     # --------------------------------------------------------
     # Generate invoice
@@ -98,12 +88,9 @@ def download_booking_invoice(
 
     try:
 
-        pdf = (
-            InvoiceService
-            .generate_booking_invoice(
-                booking=booking,
-                payment=payment,
-            )
+        pdf = InvoiceService.generate_booking_invoice(
+            booking=booking,
+            payment=payment,
         )
 
     except Exception as e:

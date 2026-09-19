@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy.orm import Session
 
 from app.models.flight import Flight
@@ -9,6 +11,10 @@ from app.schemas.flight import (
 
 
 class FlightService:
+
+    # ============================================================
+    # CREATE
+    # ============================================================
 
     @staticmethod
     def create(
@@ -55,11 +61,19 @@ class FlightService:
             flight,
         )
 
+    # ============================================================
+    # GET ALL
+    # ============================================================
+
     @staticmethod
     def get_all(
         db: Session,
     ):
         return FlightRepository.get_all(db)
+
+    # ============================================================
+    # GET BY ID
+    # ============================================================
 
     @staticmethod
     def get_by_id(
@@ -79,17 +93,28 @@ class FlightService:
 
         return flight
 
+    # ============================================================
+    # SEARCH
+    # ============================================================
+
     @staticmethod
     def search(
         db: Session,
-        origin: str,
-        destination: str,
+        origin: str | None = None,
+        destination: str | None = None,
+        departure_date: date | None = None,
     ):
+
         return FlightRepository.search(
-            db,
-            origin,
-            destination,
+            db=db,
+            origin=origin,
+            destination=destination,
+            departure_date=departure_date,
         )
+
+    # ============================================================
+    # UPDATE
+    # ============================================================
 
     @staticmethod
     def update(
@@ -113,7 +138,11 @@ class FlightService:
         )
 
         for field, value in update_data.items():
-            setattr(flight, field, value)
+            setattr(
+                flight,
+                field,
+                value,
+            )
 
         if flight.arrival_time <= flight.departure_time:
             raise Exception(
@@ -129,6 +158,10 @@ class FlightService:
             db,
             flight,
         )
+
+    # ============================================================
+    # DELETE
+    # ============================================================
 
     @staticmethod
     def delete(

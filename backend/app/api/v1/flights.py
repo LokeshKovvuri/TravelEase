@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import (
     APIRouter,
@@ -9,6 +9,7 @@ from fastapi import (
 
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_admin
 from app.database.session import get_db
 
 from app.schemas.flight import (
@@ -17,9 +18,7 @@ from app.schemas.flight import (
     FlightResponse,
 )
 
-from app.services.flight_service import (
-    FlightService,
-)
+from app.services.flight_service import FlightService
 
 
 router = APIRouter(
@@ -38,6 +37,7 @@ router = APIRouter(
 )
 def create_flight(
     flight: FlightCreate,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 
@@ -58,6 +58,7 @@ def create_flight(
 
 # ============================================================
 # SEARCH FLIGHTS
+# IMPORTANT: keep this BEFORE /{flight_id}
 # ============================================================
 
 @router.get(
@@ -66,26 +67,38 @@ def create_flight(
 )
 def search_flights(
     origin: str | None = Query(
-        default=None
+        default=None,
+        description="Departure city",
     ),
 
     destination: str | None = Query(
-        default=None
+        default=None,
+        description="Arrival city",
     ),
 
-    departure_date: datetime | None = Query(
-        default=None
+    departure_date: date | None = Query(
+        default=None,
+        description="Departure date in YYYY-MM-DD format",
     ),
 
     db: Session = Depends(get_db),
 ):
 
-    return FlightService.search(
-        db=db,
-        origin=origin,
-        destination=destination,
-        departure_date=departure_date,
-    )
+    try:
+
+        return FlightService.search(
+            db=db,
+            origin=origin,
+            destination=destination,
+            departure_date=departure_date,
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e),
+        )
 
 
 # ============================================================
@@ -100,13 +113,11 @@ def get_flights(
     db: Session = Depends(get_db),
 ):
 
-    return FlightService.get_all(
-        db
-    )
+    return FlightService.get_all(db)
 
 
 # ============================================================
-# GET FLIGHT
+# GET FLIGHT BY ID
 # ============================================================
 
 @router.get(
@@ -144,6 +155,7 @@ def get_flight(
 def update_flight(
     flight_id: int,
     flight: FlightUpdate,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 
@@ -172,6 +184,7 @@ def update_flight(
 )
 def delete_flight(
     flight_id: int,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 

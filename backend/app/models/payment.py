@@ -28,8 +28,24 @@ class Payment(Base):
 
     status = Column(
         String(30),
-        default="SUCCESS",
+        default="PENDING",
         nullable=False,
+    )
+
+    provider = Column(
+        String(30),
+        nullable=False,
+        default="mock",
+    )
+
+    provider_payment_id = Column(
+        String(255),
+        nullable=True,
+    )
+
+    checkout_url = Column(
+        String(1000),
+        nullable=True,
     )
 
     created_at = Column(

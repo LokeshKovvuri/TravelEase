@@ -1,1038 +1,389 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
+  Alert,
   Box,
   Button,
+  Card,
+  CardContent,
   Chip,
+  CircularProgress,
   Container,
   Divider,
   Rating,
   Typography,
 } from "@mui/material";
-
 import {
   ArrowBack,
+  Favorite,
   FavoriteBorder,
-  LocationOn,
-  Wifi,
-  Pool,
-  Restaurant,
-  LocalParking,
   KingBed,
+  LocationOn,
+  Pool,
+  Refresh,
+  Restaurant,
+  Wifi,
 } from "@mui/icons-material";
 
-import { useNavigate, useParams } from "react-router-dom";
-
-
-// ============================================================
-// HOTEL DATA
-// IMPORTANT:
-// roomId MUST be the real ID from your PostgreSQL `rooms` table.
-// ============================================================
-
-const hotels = [
-  {
-    id: 1,
-    name: "Ocean Pearl Resort",
-    location: "Calangute, Goa, India",
-    price: 4500,
-    rating: 4.8,
-    reviews: 324,
-    discount: 25,
-    emoji: "🏖️",
-
-    // CHANGE THIS to actual rooms.id for Ocean Pearl
-    roomId: 12,
-
-    roomType: "Deluxe King Room",
-    roomCapacity: 2,
-    roomDescription:
-      "2 guests · King bed · City view",
-
-    description:
-      "A beautiful beachfront resort with stunning ocean views, premium rooms and modern amenities. Enjoy a relaxing stay with easy access to the beach, restaurants and local attractions.",
-  },
-
-  {
-    id: 2,
-    name: "Royal Palm Hotel",
-    location: "Downtown Dubai, UAE",
-    price: 8200,
-    rating: 4.9,
-    reviews: 581,
-    discount: 20,
-    emoji: "🏨",
-
-    // CHANGE THIS to actual rooms.id for Royal Palm
-    roomId: 13,
-
-    roomType: "Deluxe King Room",
-    roomCapacity: 2,
-    roomDescription:
-      "2 guests · King bed · City view",
-
-    description:
-      "Experience luxury and comfort in the heart of Dubai with world-class hospitality, modern rooms and convenient access to major attractions.",
-  },
-
-  {
-    id: 3,
-    name: "Bali Paradise Villa",
-    location: "Ubud, Bali",
-    price: 5600,
-    rating: 4.7,
-    reviews: 267,
-    discount: 15,
-    emoji: "🌴",
-
-    // CHANGE THIS to actual rooms.id
-    roomId: 14,
-
-    roomType: "Premium Villa Room",
-    roomCapacity: 2,
-    roomDescription:
-      "2 guests · King bed · Garden view",
-
-    description:
-      "Relax in a peaceful private villa surrounded by tropical nature and beautiful scenery.",
-  },
-
-  {
-    id: 4,
-    name: "The Grand Paris",
-    location: "Paris, France",
-    price: 9800,
-    rating: 4.8,
-    reviews: 412,
-    discount: 10,
-    emoji: "🗼",
-
-    // CHANGE THIS to actual rooms.id
-    roomId: 15,
-
-    roomType: "Deluxe King Room",
-    roomCapacity: 2,
-    roomDescription:
-      "2 guests · King bed · City view",
-
-    description:
-      "Elegant accommodation close to the city's most iconic attractions.",
-  },
-];
+import api from "../services/api";
 
 
 function HotelDetails() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [hotel, setHotel] = useState(null);
+  const [rooms, setRooms] = useState([]);
+  const [selectedRoomId, setSelectedRoomId] = useState(null);
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [error, setError] = useState("");
 
+  const selectedRoom = useMemo(
+    () => rooms.find((room) => room.id === selectedRoomId) || null,
+    [rooms, selectedRoomId]
+  );
 
-  // ============================================================
-  // FIND HOTEL
-  // ============================================================
+  useEffect(() => {
+    let active = true;
 
-  const hotel =
-    hotels.find(
-      (item) => item.id === Number(id)
-    ) || hotels[0];
+    const loadHotel = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const [hotelResponse, roomsResponse, wishlistResponse] = await Promise.all([
+          api.get(`/hotels/${id}`),
+          api.get("/rooms/", { params: { hotel_id: id } }),
+          api.get("/wishlist/"),
+        ]);
+        if (!active) return;
 
+        const availableRooms = roomsResponse.data || [];
+        setHotel(hotelResponse.data);
+        setRooms(availableRooms);
+        setSelectedRoomId(
+          availableRooms.find((room) => room.available_rooms > 0)?.id ||
+          availableRooms[0]?.id ||
+          null
+        );
+        setSaved(
+          (wishlistResponse.data || []).some(
+            (item) => item.hotel_id === Number(id)
+          )
+        );
+        setLastUpdated(new Date());
+      } catch (loadError) {
+        if (!active) return;
+        setError(
+          loadError.response?.data?.detail ||
+          "Unable to load this hotel."
+        );
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
 
-  // ============================================================
-  // SELECTED ROOM
-  // ============================================================
+    loadHotel();
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
-  const selectedRoom = {
-    id: hotel.roomId,
+  const refreshInventory = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      setError("");
+      const [hotelResponse, roomsResponse] = await Promise.all([
+        api.get(`/hotels/${id}`),
+        api.get("/rooms/", { params: { hotel_id: id } }),
+      ]);
+      const refreshedRooms = roomsResponse.data || [];
+      setHotel(hotelResponse.data);
+      setRooms(refreshedRooms);
+      setSelectedRoomId((currentRoomId) => {
+        const currentRoom = refreshedRooms.find((room) => room.id === currentRoomId);
+        if (currentRoom && currentRoom.available_rooms > 0) return currentRoomId;
+        return refreshedRooms.find((room) => room.available_rooms > 0)?.id || null;
+      });
+      setLastUpdated(new Date());
+    } catch (refreshError) {
+      setError(
+        refreshError.response?.data?.detail ||
+        "Unable to refresh current room inventory."
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }, [id]);
 
-    room_type: hotel.roomType,
+  useEffect(() => {
+    const refreshTimer = window.setInterval(refreshInventory, 30000);
+    return () => window.clearInterval(refreshTimer);
+  }, [refreshInventory]);
 
-    price: hotel.price,
+  const handleWishlist = async () => {
+    if (!hotel || saving) return;
 
-    capacity: hotel.roomCapacity,
-
-    description: hotel.roomDescription,
+    try {
+      setSaving(true);
+      setError("");
+      if (saved) {
+        await api.delete(`/wishlist/${hotel.id}`);
+        setSaved(false);
+      } else {
+        await api.post("/wishlist/", { hotel_id: hotel.id });
+        setSaved(true);
+      }
+    } catch (saveError) {
+      setError(
+        saveError.response?.data?.detail ||
+        "Unable to update your wishlist."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-
-  // ============================================================
-  // GO TO BOOKING
-  // ============================================================
-
   const handleBookRoom = () => {
-    if (!selectedRoom.id) {
-      console.error(
-        "Room ID is missing for hotel:",
-        hotel.name
-      );
-
+    if (!selectedRoom || selectedRoom.available_rooms <= 0) {
+      setError("Choose an available room before continuing.");
       return;
     }
 
-
-    navigate(
-      `/hotels/${hotel.id}/booking`,
-      {
-        state: {
-
-          // IMPORTANT
-          // This fixes your current problem
-          roomId: selectedRoom.id,
-
-          // Room information
-          roomType:
-            selectedRoom.room_type,
-
-          roomPrice:
-            selectedRoom.price,
-
-          // Hotel information
-          hotelId: hotel.id,
-
-          hotelName:
-            hotel.name,
-
-          hotelLocation:
-            hotel.location,
-
-          hotelImage:
-            hotel.image || "",
-
-          // Extra information
-          roomCapacity:
-            selectedRoom.capacity,
-
-          roomDescription:
-            selectedRoom.description,
-        },
-      }
-    );
+    navigate(`/hotels/${hotel.id}/booking`, {
+      state: {
+        roomId: selectedRoom.id,
+        roomType: selectedRoom.room_type,
+        roomPrice: selectedRoom.price,
+        hotelId: hotel.id,
+        hotelName: hotel.name,
+        hotelLocation: `${hotel.city}, ${hotel.country}`,
+        hotelImage: hotel.image_url || "",
+        roomCapacity: selectedRoom.capacity,
+        roomDescription: selectedRoom.description || "",
+      },
+    });
   };
 
+  if (loading) {
+    return (
+      <Box sx={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
+        <CircularProgress sx={{ color: "#8B5CF6" }} />
+      </Box>
+    );
+  }
+
+  if (error && !hotel) {
+    return (
+      <Container sx={{ py: 5 }}>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate("/hotels")}>
+          Back to stays
+        </Button>
+        <Alert severity="error" sx={{ mt: 3 }}>{error}</Alert>
+      </Container>
+    );
+  }
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        background: "#0B0F17",
-        py: 5,
-      }}
-    >
-
+    <Box sx={{ minHeight: "100vh", background: "#0B0F17", py: 5 }}>
       <Container maxWidth="xl">
-
-        {/* ================================================= */}
-        {/* BACK */}
-        {/* ================================================= */}
-
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate(-1)}
-          sx={{
-            color: "#B8C0CC",
-            mb: 3,
-            textTransform: "none",
-          }}
+          onClick={() => navigate("/hotels")}
+          sx={{ color: "#B8C0CC", mb: 3, textTransform: "none" }}
         >
-          Back to hotels
+          Back to stays
         </Button>
 
-
-        {/* ================================================= */}
-        {/* HEADER */}
-        {/* ================================================= */}
+        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
         <Box
           sx={{
             display: "flex",
-
-            justifyContent:
-              "space-between",
-
-            alignItems: {
-              xs: "start",
-              md: "center",
-            },
-
+            justifyContent: "space-between",
             gap: 2,
-
+            alignItems: { xs: "flex-start", md: "center" },
+            flexDirection: { xs: "column", md: "row" },
             mb: 3,
-
-            flexDirection: {
-              xs: "column",
-              md: "row",
-            },
           }}
         >
-
           <Box>
-
             <Typography
               variant="h2"
-              sx={{
-                fontWeight: 800,
-
-                fontSize: {
-                  xs: "2.2rem",
-                  md: "3.5rem",
-                },
-
-                color: "#FFFFFF",
-              }}
+              sx={{ color: "#fff", fontWeight: 800, fontSize: { xs: "2.2rem", md: "3.25rem" } }}
             >
               {hotel.name}
             </Typography>
-
-
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 0.5,
-                mt: 1,
-              }}
-            >
-
-              <LocationOn
-                sx={{
-                  color: "#6C63FF",
-                }}
-              />
-
-              <Typography
-                sx={{
-                  color: "#B8C0CC",
-                }}
-              >
-                {hotel.location}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 1 }}>
+              <LocationOn sx={{ color: "#6C63FF" }} />
+              <Typography sx={{ color: "#B8C0CC" }}>
+                {hotel.city}, {hotel.country}
               </Typography>
-
             </Box>
-
           </Box>
-
 
           <Button
-            startIcon={
-              <FavoriteBorder />
-            }
-
+            startIcon={saved ? <Favorite /> : <FavoriteBorder />}
+            onClick={handleWishlist}
+            disabled={saving}
             sx={{
-              border:
-                "1px solid #2A3441",
-
-              color: "#fff",
-
+              border: "1px solid #2A3441",
+              color: saved ? "#FF5C8A" : "#fff",
               borderRadius: 2,
-
               px: 3,
-
-              textTransform:
-                "none",
+              textTransform: "none",
             }}
           >
-            Save
+            {saved ? "Saved" : "Save"}
           </Button>
-
         </Box>
 
-
-        {/* ================================================= */}
-        {/* IMAGE GALLERY */}
-        {/* ================================================= */}
-
-        <Box
-          sx={{
-            display: "grid",
-
-            gridTemplateColumns: {
-              xs: "1fr",
-              md: "2fr 1fr 1fr",
-            },
-
-            gridTemplateRows: {
-              xs: "250px",
-              md: "180px 180px",
-            },
-
-            gap: 1.5,
-
-            mb: 5,
-          }}
-        >
-
-          {/* Main image */}
-
-          <Box
-            sx={{
-              gridRow: {
-                md: "span 2",
-              },
-
-              borderRadius: 4,
-
-              display: "flex",
-
-              alignItems:
-                "center",
-
-              justifyContent:
-                "center",
-
-              background:
-                "radial-gradient(circle at 30% 30%, rgba(108,99,255,0.4), transparent 40%), linear-gradient(135deg, #202938, #11161F)",
-
-              overflow: "hidden",
-            }}
-          >
-
-            <Typography
-              sx={{
-                fontSize: {
-                  xs: "6rem",
-                  md: "9rem",
-                },
-              }}
-            >
-              {hotel.emoji}
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mb: 2, alignItems: "center" }}>
+          {lastUpdated && (
+            <Typography sx={{ color: "#8992A5", fontSize: "0.75rem" }}>
+              Inventory updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </Typography>
-
-          </Box>
-
-
-          {[
-            "🌅",
-            "🛏️",
-            "🏊",
-            "🍽️",
-          ].map(
-            (emoji, index) => (
-              <Box
-                key={index}
-                sx={{
-                  borderRadius: 4,
-
-                  display: "flex",
-
-                  alignItems:
-                    "center",
-
-                  justifyContent:
-                    "center",
-
-                  background:
-                    "linear-gradient(135deg, #202938, #11161F)",
-
-                  border:
-                    "1px solid #2A3441",
-                }}
-              >
-
-                <Typography
-                  sx={{
-                    fontSize:
-                      "4rem",
-                  }}
-                >
-                  {emoji}
-                </Typography>
-
-              </Box>
-            )
           )}
-
+          <Button
+            size="small"
+            startIcon={refreshing ? <CircularProgress size={14} color="inherit" /> : <Refresh />}
+            disabled={refreshing}
+            onClick={refreshInventory}
+            sx={{ color: "#B8C0CC", textTransform: "none" }}
+          >
+            Refresh rooms
+          </Button>
         </Box>
-
-
-        {/* ================================================= */}
-        {/* MAIN CONTENT */}
-        {/* ================================================= */}
 
         <Box
           sx={{
-            display: "grid",
-
-            gridTemplateColumns: {
-              xs: "1fr",
-              lg: "1fr 350px",
-            },
-
-            gap: 5,
+            minHeight: { xs: 260, md: 420 },
+            borderRadius: 4,
+            overflow: "hidden",
+            mb: 4,
+            background: "linear-gradient(135deg, #202938, #11161F)",
           }}
         >
-
-          {/* ================================================= */}
-          {/* LEFT */}
-          {/* ================================================= */}
-
-          <Box>
-
-            {/* Rating */}
-
+          {hotel.image_url ? (
             <Box
-              sx={{
-                display: "flex",
-
-                alignItems:
-                  "center",
-
-                gap: 2,
-
-                mb: 3,
-
-                flexWrap:
-                  "wrap",
-              }}
-            >
-
-              <Rating
-                value={hotel.rating}
-                precision={0.1}
-                readOnly
-              />
-
-              <Typography
-                fontWeight={600}
-                sx={{
-                  color: "#FFFFFF",
-                }}
-              >
-                {hotel.rating}
-              </Typography>
-
-              <Typography
-                sx={{
-                  color:
-                    "#8F98A8",
-                }}
-              >
-                {hotel.reviews} reviews
-              </Typography>
-
-              <Chip
-                label="Excellent"
-                sx={{
-                  background:
-                    "rgba(0,212,255,0.1)",
-
-                  color:
-                    "#00D4FF",
-                }}
-              />
-
-            </Box>
-
-
-            <Divider
-              sx={{
-                borderColor:
-                  "#2A3441",
-
-                mb: 4,
-              }}
+              component="img"
+              src={hotel.image_url}
+              alt={hotel.name}
+              sx={{ width: "100%", height: "100%", minHeight: "inherit", objectFit: "cover" }}
             />
+          ) : (
+            <Box sx={{ minHeight: "inherit", display: "grid", placeItems: "center", fontSize: "7rem" }}>
+              🏨
+            </Box>
+          )}
+        </Box>
 
-
-            {/* About */}
-
-            <Typography
-              variant="h5"
-              fontWeight={700}
-              sx={{
-                mb: 2,
-
-                color: "#FFFFFF",
-              }}
-            >
-              About this hotel
-            </Typography>
-
-
-            <Typography
-              sx={{
-                color:
-                  "#9AA4B2",
-
-                lineHeight: 1.9,
-
-                maxWidth: 800,
-              }}
-            >
-              {hotel.description}
-            </Typography>
-
-
-            {/* Amenities */}
-
-            <Typography
-              variant="h5"
-              fontWeight={700}
-              sx={{
-                mt: 5,
-
-                mb: 3,
-
-                color: "#FFFFFF",
-              }}
-            >
-              Popular amenities
-            </Typography>
-
-
-            <Box
-              sx={{
-                display: "grid",
-
-                gridTemplateColumns: {
-                  xs: "1fr 1fr",
-
-                  sm: "repeat(4, 1fr)",
-                },
-
-                gap: 2,
-              }}
-            >
-
-              {[
-                [Wifi, "Free WiFi"],
-                [Pool, "Swimming Pool"],
-                [
-                  Restaurant,
-                  "Restaurant",
-                ],
-                [
-                  LocalParking,
-                  "Free Parking",
-                ],
-              ].map(
-                ([Icon, label]) => (
-                  <Box
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1.45fr 0.9fr" }, gap: 3 }}>
+          <Card sx={{ background: "#161B22", border: "1px solid #2A3441", borderRadius: 4 }}>
+            <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                <Rating value={Number(hotel.rating) || 0} precision={0.1} readOnly />
+                <Typography sx={{ color: "#fff", fontWeight: 700 }}>
+                  {Number(hotel.rating || 0).toFixed(1)} / 5
+                </Typography>
+              </Box>
+              <Typography variant="h5" sx={{ color: "#fff", fontWeight: 800, mb: 1.5 }}>
+                About this stay
+              </Typography>
+              <Typography sx={{ color: "#AAB2BF", lineHeight: 1.8 }}>
+                {hotel.description || "A comfortable TravelEase stay in a great location."}
+              </Typography>
+              <Divider sx={{ borderColor: "#2A3441", my: 3 }} />
+              <Typography variant="h6" sx={{ color: "#fff", fontWeight: 800, mb: 2 }}>
+                Popular amenities
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25 }}>
+                {[
+                  [<Wifi key="wifi" />, "Wi-Fi"],
+                  [<Pool key="pool" />, "Pool"],
+                  [<Restaurant key="restaurant" />, "Restaurant"],
+                ].map(([icon, label]) => (
+                  <Chip
                     key={label}
-                    sx={{
-                      p: 2,
+                    icon={icon}
+                    label={label}
+                    sx={{ color: "#D7DBE3", background: "#0F141C", border: "1px solid #293242" }}
+                  />
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
 
-                      borderRadius: 3,
-
-                      background:
-                        "#161B22",
-
-                      border:
-                        "1px solid #2A3441",
-
-                      display:
-                        "flex",
-
-                      alignItems:
-                        "center",
-
-                      gap: 1,
-                    }}
-                  >
-
-                    <Icon
-                      sx={{
-                        color:
-                          "#6C63FF",
-                      }}
-                    />
-
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color:
-                          "#FFFFFF",
-                      }}
-                    >
-                      {label}
-                    </Typography>
-
-                  </Box>
-                )
+          <Card sx={{ background: "#161B22", border: "1px solid #2A3441", borderRadius: 4, height: "fit-content" }}>
+            <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+              <Typography variant="h6" sx={{ color: "#fff", fontWeight: 800, mb: 2 }}>
+                Choose a room
+              </Typography>
+              {rooms.length === 0 ? (
+                <Alert severity="info">No rooms have been added for this hotel yet.</Alert>
+              ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+                  {rooms.map((room) => {
+                    const available = room.available_rooms > 0;
+                    const selected = room.id === selectedRoomId;
+                    return (
+                      <Box
+                        key={room.id}
+                        component="button"
+                        type="button"
+                        disabled={!available}
+                        onClick={() => setSelectedRoomId(room.id)}
+                        sx={{
+                          textAlign: "left",
+                          cursor: available ? "pointer" : "not-allowed",
+                          p: 1.75,
+                          borderRadius: 2.5,
+                          background: selected ? "rgba(108,99,255,0.16)" : "#0F141C",
+                          border: selected ? "1px solid #7768FF" : "1px solid #2A3441",
+                          color: "#fff",
+                          opacity: available ? 1 : 0.55,
+                        }}
+                      >
+                        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+                          <Box>
+                            <Typography sx={{ fontWeight: 800 }}>{room.room_type}</Typography>
+                            <Typography sx={{ color: "#8992A5", fontSize: "0.78rem", mt: 0.3 }}>
+                              Sleeps up to {room.capacity} · {available ? `${room.available_rooms} available` : "Sold out"}
+                            </Typography>
+                          </Box>
+                          <KingBed sx={{ color: "#8B7DFF" }} />
+                        </Box>
+                        <Typography sx={{ color: "#fff", fontWeight: 800, mt: 1 }}>
+                          ₹{Number(room.price).toLocaleString("en-IN")}
+                          <Box component="span" sx={{ color: "#8992A5", fontWeight: 400, fontSize: "0.78rem" }}> / night</Box>
+                        </Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
               )}
-
-            </Box>
-
-
-            {/* ================================================= */}
-            {/* AVAILABLE ROOMS */}
-            {/* ================================================= */}
-
-            <Typography
-              variant="h5"
-              fontWeight={700}
-              sx={{
-                mt: 6,
-
-                mb: 3,
-
-                color: "#FFFFFF",
-              }}
-            >
-              Available rooms
-            </Typography>
-
-
-            <Box
-              sx={{
-                p: 3,
-
-                borderRadius: 4,
-
-                background:
-                  "#161B22",
-
-                border:
-                  "1px solid #2A3441",
-
-                display: "flex",
-
-                justifyContent:
-                  "space-between",
-
-                alignItems: {
-                  xs: "start",
-                  md: "center",
-                },
-
-                gap: 3,
-
-                flexDirection: {
-                  xs: "column",
-                  md: "row",
-                },
-              }}
-            >
-
-              <Box>
-
-                <KingBed
-                  sx={{
-                    color:
-                      "#8B5CF6",
-
-                    mb: 1,
-                  }}
-                />
-
-
-                <Typography
-                  variant="h6"
-                  fontWeight={700}
-                  sx={{
-                    color:
-                      "#FFFFFF",
-                  }}
-                >
-                  {selectedRoom.room_type}
-                </Typography>
-
-
-                <Typography
-                  sx={{
-                    color:
-                      "#8F98A8",
-
-                    mt: 1,
-                  }}
-                >
-                  {selectedRoom.capacity}{" "}
-                  guests · King bed · City view
-                </Typography>
-
-
-                {/* Room ID - useful while testing */}
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: "block",
-
-                    color:
-                      "#667080",
-
-                    mt: 1,
-                  }}
-                >
-                  Room ID: {selectedRoom.id}
-                </Typography>
-
-              </Box>
-
-
-              <Box
-                sx={{
-                  textAlign: {
-                    xs: "left",
-                    md: "right",
-                  },
-                }}
-              >
-
-                <Typography
-                  variant="h5"
-                  fontWeight={700}
-                  sx={{
-                    color:
-                      "#FFFFFF",
-                  }}
-                >
-                  ₹
-                  {selectedRoom.price.toLocaleString()}
-                </Typography>
-
-
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color:
-                      "#8F98A8",
-                  }}
-                >
-                  per night
-                </Typography>
-
-
-                <Button
-                  variant="contained"
-                  onClick={
-                    handleBookRoom
-                  }
-                  sx={{
-                    display:
-                      "block",
-
-                    mt: 1.5,
-
-                    borderRadius: 2,
-
-                    px: 3,
-
-                    textTransform:
-                      "none",
-
-                    fontWeight: 700,
-
-                    background:
-                      "linear-gradient(135deg, #6C63FF, #8B5CF6)",
-
-                    "&:hover": {
-                      background:
-                        "linear-gradient(135deg, #7C73FF, #9B6CFF)",
-                    },
-                  }}
-                >
-                  Select room
-                </Button>
-
-              </Box>
-
-            </Box>
-
-          </Box>
-
-
-          {/* ================================================= */}
-          {/* BOOKING CARD */}
-          {/* ================================================= */}
-
-          <Box>
-
-            <Box
-              sx={{
-                position:
-                  "sticky",
-
-                top: 100,
-
-                p: 3,
-
-                borderRadius: 4,
-
-                background:
-                  "#161B22",
-
-                border:
-                  "1px solid #2A3441",
-
-                boxShadow:
-                  "0 20px 50px rgba(0,0,0,0.3)",
-              }}
-            >
-
-              <Typography
-                variant="h4"
-                fontWeight={800}
-                sx={{
-                  color:
-                    "#FFFFFF",
-                }}
-              >
-                ₹
-                {hotel.price.toLocaleString()}
-              </Typography>
-
-
-              <Typography
-                sx={{
-                  color:
-                    "#8F98A8",
-
-                  mb: 3,
-                }}
-              >
-                per night
-              </Typography>
-
-
-              <Divider
-                sx={{
-                  borderColor:
-                    "#2A3441",
-
-                  mb: 3,
-                }}
-              />
-
-
-              <Typography
-                fontWeight={600}
-                sx={{
-                  mb: 1,
-
-                  color:
-                    "#FFFFFF",
-                }}
-              >
-                Your stay
-              </Typography>
-
-
-              <Box
-                sx={{
-                  p: 2,
-
-                  borderRadius: 2,
-
-                  border:
-                    "1px solid #2A3441",
-
-                  mb: 2,
-                }}
-              >
-
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color:
-                      "#FFFFFF",
-                  }}
-                >
-                  Check-in
-                </Typography>
-
-
-                <Typography
-                  sx={{
-                    color:
-                      "#8F98A8",
-                  }}
-                >
-                  Select your date
-                </Typography>
-
-              </Box>
-
-
-              <Box
-                sx={{
-                  p: 2,
-
-                  borderRadius: 2,
-
-                  border:
-                    "1px solid #2A3441",
-
-                  mb: 3,
-                }}
-              >
-
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color:
-                      "#FFFFFF",
-                  }}
-                >
-                  Check-out
-                </Typography>
-
-
-                <Typography
-                  sx={{
-                    color:
-                      "#8F98A8",
-                  }}
-                >
-                  Select your date
-                </Typography>
-
-              </Box>
-
-
-              {/* IMPORTANT */}
-
               <Button
                 fullWidth
-                size="large"
                 variant="contained"
-                onClick={
-                  handleBookRoom
-                }
+                disabled={!selectedRoom || selectedRoom.available_rooms <= 0}
+                onClick={handleBookRoom}
                 sx={{
-                  height: 55,
-
+                  mt: 2.5,
+                  height: 50,
                   borderRadius: 2,
-
-                  background:
-                    "linear-gradient(135deg, #6C63FF, #8B5CF6)",
-
-                  fontWeight: 700,
-
-                  textTransform:
-                    "none",
-
-                  "&:hover": {
-                    background:
-                      "linear-gradient(135deg, #7C73FF, #9B6CFF)",
-                  },
+                  fontWeight: 800,
+                  textTransform: "none",
+                  background: "linear-gradient(135deg, #6C63FF, #8B5CF6)",
                 }}
               >
-                Book now
+                Reserve room
               </Button>
-
-
-              <Typography
-                variant="caption"
-                sx={{
-                  display:
-                    "block",
-
-                  textAlign:
-                    "center",
-
-                  color:
-                    "#667080",
-
-                  mt: 2,
-                }}
-              >
-                You won't be charged yet
-              </Typography>
-
-            </Box>
-
-          </Box>
-
+            </CardContent>
+          </Card>
         </Box>
-
       </Container>
-
     </Box>
   );
 }

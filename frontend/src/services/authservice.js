@@ -1,64 +1,84 @@
 import api from "./api";
 
+
 // ============================================================
 // LOGIN
 // ============================================================
 
-export const login = async (email, password) => {
-  const formData = new URLSearchParams();
+export const login = async (
+  email,
+  password
+) => {
 
-  formData.append("username", email);
-  formData.append("password", password);
+  const formData =
+    new URLSearchParams();
 
-  const response = await api.post(
-    "/auth/login",
-    formData,
-    {
-      headers: {
-        "Content-Type":
-          "application/x-www-form-urlencoded",
-      },
-    }
+  formData.append(
+    "username",
+    email
   );
 
-  const data = response.data;
+  formData.append(
+    "password",
+    password
+  );
 
-  console.log("LOGIN RESPONSE:", data);
 
-  // ----------------------------------------------------------
-  // FastAPI OAuth2 normally returns:
-  //
-  // {
-  //   access_token: "...",
-  //   token_type: "bearer"
-  // }
-  // ----------------------------------------------------------
+  const response =
+    await api.post(
+      "/auth/login",
+      formData,
+      {
+        headers: {
+          "Content-Type":
+            "application/x-www-form-urlencoded",
+        },
+      }
+    );
 
-  const token = data.access_token;
+
+  const data =
+    response.data;
+
+
+  const token =
+    data?.access_token;
+
 
   if (!token) {
-    console.error(
-      "Login succeeded but no access_token was returned.",
-      data
-    );
 
     throw new Error(
       "Authentication token was not returned by the server."
     );
+
   }
 
-  // ----------------------------------------------------------
-  // SAVE JWT
-  // ----------------------------------------------------------
 
   localStorage.setItem(
     "access_token",
     token
   );
 
+
+  const savedToken =
+    localStorage.getItem(
+      "access_token"
+    );
+
+
+  if (!savedToken) {
+
+    throw new Error(
+      "Authentication token could not be saved."
+    );
+
+  }
+
+
   console.log(
     "JWT saved successfully."
   );
+
 
   return data;
 };
@@ -69,9 +89,11 @@ export const login = async (email, password) => {
 // ============================================================
 
 export const logout = () => {
+
   localStorage.removeItem(
     "access_token"
   );
+
 };
 
 
@@ -80,9 +102,11 @@ export const logout = () => {
 // ============================================================
 
 export const getToken = () => {
+
   return localStorage.getItem(
     "access_token"
   );
+
 };
 
 
@@ -91,7 +115,11 @@ export const getToken = () => {
 // ============================================================
 
 export const isAuthenticated = () => {
-  return !!localStorage.getItem(
-    "access_token"
+
+  return Boolean(
+    localStorage.getItem(
+      "access_token"
+    )
   );
+
 };

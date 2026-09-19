@@ -61,6 +61,30 @@ class PaymentRepository:
             .first()
         )
 
+    @staticmethod
+    def get_by_id_for_update(
+        db: Session,
+        payment_id: int,
+    ):
+        return (
+            db.query(Payment)
+            .filter(Payment.id == payment_id)
+            .with_for_update()
+            .first()
+        )
+
+    @staticmethod
+    def get_by_booking_id_for_update(
+        db: Session,
+        booking_id: int,
+    ):
+        return (
+            db.query(Payment)
+            .filter(Payment.booking_id == booking_id)
+            .with_for_update()
+            .first()
+        )
+
 
     @staticmethod
     def get_by_user_id(

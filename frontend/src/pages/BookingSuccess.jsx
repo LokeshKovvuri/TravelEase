@@ -1,773 +1,202 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
   Card,
   CardContent,
-  Divider,
+  CircularProgress,
   Typography,
 } from "@mui/material";
-
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import HourglassTopIcon from "@mui/icons-material/HourglassTop";
 import {
-  CheckCircle,
-  Hotel,
-  CalendarMonth,
-  People,
-  ConfirmationNumber,
-  ArrowForward,
-} from "@mui/icons-material";
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 
-import { useLocation, useNavigate } from "react-router-dom";
+import api from "../services/api";
 
 
 function BookingSuccess() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const stateData = location.state || {};
+  const bookingId = searchParams.get("booking_id");
 
-  const {
-    booking,
-    hotel,
-    room,
-    checkIn,
-    checkOut,
-    guests,
-    total,
-    paymentMethod,
-  } = location.state || {};
+  const [loadedBooking, setLoadedBooking] = useState(null);
+  const [loading, setLoading] = useState(
+    Boolean(bookingId && !stateData.booking)
+  );
+  const [loadError, setLoadError] = useState("");
 
+  // A hosted checkout returns without React navigation state. Reload the
+  // booking and briefly poll while the payment-provider webhook is processed.
+  useEffect(() => {
+    if (stateData.booking || !bookingId) {
+      setLoading(false);
+      return undefined;
+    }
 
-  // --------------------------------------------------
-  // Safety check
-  // --------------------------------------------------
+    let cancelled = false;
+    let attempts = 0;
+    let timer;
 
-  if (!booking || !hotel) {
-    return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          background: "#0B0F17",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          p: 3,
-        }}
-      >
-        <Card
-          sx={{
-            maxWidth: 500,
-            width: "100%",
-            background: "#161B22",
-            border: "1px solid #2A3441",
-            borderRadius: 4,
-          }}
-        >
-          <CardContent
-            sx={{
-              p: 4,
-              textAlign: "center",
-            }}
-          >
-            <Typography
-              variant="h5"
-              fontWeight={700}
-              sx={{ color: "#fff" }}
-            >
-              Booking details not found
-            </Typography>
+    const loadBooking = async () => {
+      try {
+        const response = await api.get(`/bookings/${bookingId}`);
+        if (cancelled) return;
 
-            <Typography
-              sx={{
-                color: "#8F98A8",
-                mt: 1,
-                mb: 3,
-              }}
-            >
-              Please open your bookings to see your reservation.
-            </Typography>
+        setLoadedBooking(response.data);
+        setLoadError("");
+        setLoading(false);
+        attempts += 1;
 
-            <Button
-              variant="contained"
-              onClick={() =>
-                navigate("/my-bookings")
-              }
-              sx={{
-                borderRadius: 2,
-                px: 4,
-                background:
-                  "linear-gradient(135deg, #6C63FF, #8B5CF6)",
-              }}
-            >
-              My Bookings
-            </Button>
-          </CardContent>
-        </Card>
-      </Box>
-    );
-  }
+        if (
+          response.data.status === "PENDING_PAYMENT" &&
+          attempts < 10
+        ) {
+          timer = window.setTimeout(loadBooking, 3000);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setLoading(false);
+        setLoadError(
+          error.response?.data?.detail ||
+          "Unable to load the booking confirmation."
+        );
+      }
+    };
 
+    loadBooking();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [bookingId, stateData.booking]);
 
-  // --------------------------------------------------
-  // Display total
-  // --------------------------------------------------
-
-  const displayTotal =
-    total ??
-    booking.total_price ??
-    0;
-
+  const booking = stateData.booking || loadedBooking;
+  const payment = stateData.payment;
+  const isConfirmed = (
+    booking?.status === "CONFIRMED" ||
+    payment?.status === "SUCCESS"
+  );
+  const isFlightBooking = Boolean(booking?.flight_id);
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
         background: "#0B0F17",
-        py: {
-          xs: 4,
-          md: 7,
-        },
-        px: 2,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        p: 3,
       }}
     >
-      <Box
+      <Card
         sx={{
-          maxWidth: 850,
-          mx: "auto",
+          width: "100%",
+          maxWidth: 650,
+          background: "#161B22",
+          border: "1px solid #2A3441",
+          borderRadius: 4,
         }}
       >
-
-        {/* ============================================== */}
-        {/* SUCCESS ICON */}
-        {/* ============================================== */}
-
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            mb: 3,
-          }}
-        >
-          <Box
-            sx={{
-              width: 90,
-              height: 90,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background:
-                "rgba(34,197,94,0.12)",
-              border:
-                "1px solid rgba(34,197,94,0.35)",
-            }}
-          >
-            <CheckCircle
-              sx={{
-                fontSize: 58,
-                color: "#22C55E",
-              }}
+        <CardContent sx={{ p: 5, textAlign: "center" }}>
+          {loading ? (
+            <CircularProgress sx={{ color: "#8B5CF6", mb: 2 }} />
+          ) : isConfirmed ? (
+            <CheckCircleIcon
+              sx={{ fontSize: 80, color: "#22C55E", mb: 2 }}
             />
-          </Box>
-        </Box>
-
-
-        {/* ============================================== */}
-        {/* HEADER */}
-        {/* ============================================== */}
-
-        <Box
-          sx={{
-            textAlign: "center",
-            mb: 4,
-          }}
-        >
-          <Typography
-            sx={{
-              color: "#22C55E",
-              fontSize: "0.8rem",
-              fontWeight: 700,
-              letterSpacing: 2,
-              textTransform: "uppercase",
-              mb: 1,
-            }}
-          >
-            Booking confirmed
-          </Typography>
+          ) : (
+            <HourglassTopIcon
+              sx={{ fontSize: 80, color: "#F59E0B", mb: 2 }}
+            />
+          )}
 
           <Typography
-            variant="h2"
-            sx={{
-              color: "#fff",
-              fontWeight: 800,
-              fontSize: {
-                xs: "2.2rem",
-                md: "3.5rem",
-              },
-            }}
+            variant="h4"
+            fontWeight={800}
+            sx={{ color: "#FFFFFF", mb: 1 }}
           >
-            You're all set!
+            {isConfirmed ? "Booking Confirmed!" : "Payment Processing"}
           </Typography>
 
-          <Typography
-            sx={{
-              color: "#8F98A8",
-              mt: 1,
-              fontSize: "1rem",
-            }}
-          >
-            Your hotel booking has been confirmed successfully.
+          <Typography sx={{ color: "#8F98A8", mb: 4 }}>
+            {isConfirmed
+              ? "Your payment was successful and your booking has been confirmed."
+              : "We are waiting for the payment provider to confirm your booking."}
           </Typography>
-        </Box>
 
+          {loadError && (
+            <Typography sx={{ color: "#FCA5A5", mb: 3 }}>
+              {loadError}
+            </Typography>
+          )}
 
-        {/* ============================================== */}
-        {/* BOOKING CARD */}
-        {/* ============================================== */}
-
-        <Card
-          sx={{
-            background: "#161B22",
-            border: "1px solid #2A3441",
-            borderRadius: 4,
-            overflow: "hidden",
-          }}
-        >
-
-          {/* ========================================== */}
-          {/* HOTEL */}
-          {/* ========================================== */}
-
-          <CardContent
-            sx={{
-              p: {
-                xs: 2.5,
-                md: 3,
-              },
-            }}
-          >
-
+          {booking && (
             <Box
               sx={{
-                display: "flex",
-                gap: 2,
-                alignItems: "center",
-              }}
-            >
-
-              {/* Image */}
-
-              <Box
-                sx={{
-                  width: 100,
-                  height: 90,
-                  borderRadius: 3,
-                  overflow: "hidden",
-                  flexShrink: 0,
-                  background:
-                    "linear-gradient(135deg, #202938, #11161F)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-
-                {hotel.image ? (
-                  <Box
-                    component="img"
-                    src={hotel.image}
-                    alt={hotel.name}
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                  />
-                ) : (
-                  <Hotel
-                    sx={{
-                      fontSize: 42,
-                      color: "#6C63FF",
-                    }}
-                  />
-                )}
-
-              </Box>
-
-
-              {/* Hotel info */}
-
-              <Box>
-                <Typography
-                  variant="h6"
-                  fontWeight={700}
-                  sx={{
-                    color: "#fff",
-                  }}
-                >
-                  {hotel.name}
-                </Typography>
-
-                <Typography
-                  sx={{
-                    color: "#8F98A8",
-                    mt: 0.5,
-                  }}
-                >
-                  {hotel.location}
-                </Typography>
-
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: "#B8C0CC",
-                    mt: 0.8,
-                  }}
-                >
-                  {room?.room_type ||
-                    "Selected room"}
-                </Typography>
-              </Box>
-
-            </Box>
-
-          </CardContent>
-
-
-          <Divider
-            sx={{
-              borderColor: "#2A3441",
-            }}
-          />
-
-
-          {/* ========================================== */}
-          {/* DETAILS */}
-          {/* ========================================== */}
-
-          <CardContent
-            sx={{
-              p: {
-                xs: 2.5,
-                md: 3,
-              },
-            }}
-          >
-
-            <Typography
-              variant="h6"
-              fontWeight={700}
-              sx={{
-                color: "#fff",
+                textAlign: "left",
+                background: "#0F141C",
+                borderRadius: 3,
+                p: 3,
                 mb: 3,
               }}
             >
-              Booking details
-            </Typography>
+              <Typography sx={{ color: "#FFFFFF", mb: 1 }}>
+                Booking ID: TEA-{String(booking.id).padStart(6, "0")}
+              </Typography>
 
+              <Typography sx={{ color: "#B8C0CC", mb: 1 }}>
+                {isFlightBooking
+                  ? "Type: Flight booking"
+                  : `Hotel: ${stateData.hotel?.name || "Hotel booking"}`}
+              </Typography>
 
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "1fr 1fr",
-                },
-                gap: 2,
-              }}
-            >
-
-              {/* Booking ID */}
-
-              <Box
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  background: "#11161F",
-                  border:
-                    "1px solid #2A3441",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    mb: 1,
-                  }}
-                >
-                  <ConfirmationNumber
-                    sx={{
-                      color: "#6C63FF",
-                      fontSize: 20,
-                    }}
-                  />
-
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#8F98A8",
-                    }}
-                  >
-                    Booking ID
+              {!isFlightBooking && (
+                <>
+                  <Typography sx={{ color: "#B8C0CC", mb: 1 }}>
+                    Room: {stateData.room?.room_type || "Selected room"}
                   </Typography>
-                </Box>
-
-                <Typography
-                  fontWeight={700}
-                  sx={{
-                    color: "#fff",
-                  }}
-                >
-                  #{booking.id}
-                </Typography>
-              </Box>
-
-
-              {/* Guests */}
-
-              <Box
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  background: "#11161F",
-                  border:
-                    "1px solid #2A3441",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    mb: 1,
-                  }}
-                >
-                  <People
-                    sx={{
-                      color: "#00D4FF",
-                      fontSize: 20,
-                    }}
-                  />
-
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#8F98A8",
-                    }}
-                  >
-                    Guests
+                  <Typography sx={{ color: "#B8C0CC", mb: 1 }}>
+                    Check-in: {stateData.checkIn || booking.check_in}
                   </Typography>
-                </Box>
-
-                <Typography
-                  fontWeight={700}
-                  sx={{
-                    color: "#fff",
-                  }}
-                >
-                  {guests ||
-                    booking.guests ||
-                    1}{" "}
-                  {(guests ||
-                    booking.guests ||
-                    1) === 1
-                    ? "Guest"
-                    : "Guests"}
-                </Typography>
-              </Box>
-
-
-              {/* Check in */}
-
-              <Box
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  background: "#11161F",
-                  border:
-                    "1px solid #2A3441",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    mb: 1,
-                  }}
-                >
-                  <CalendarMonth
-                    sx={{
-                      color: "#8B5CF6",
-                      fontSize: 20,
-                    }}
-                  />
-
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#8F98A8",
-                    }}
-                  >
-                    Check-in
+                  <Typography sx={{ color: "#B8C0CC", mb: 1 }}>
+                    Check-out: {stateData.checkOut || booking.check_out}
                   </Typography>
-                </Box>
+                </>
+              )}
 
-                <Typography
-                  fontWeight={700}
-                  sx={{
-                    color: "#fff",
-                  }}
-                >
-                  {checkIn ||
-                    booking.check_in}
-                </Typography>
-              </Box>
+              <Typography sx={{ color: "#B8C0CC", mb: 1 }}>
+                Guests: {stateData.guests || booking.guests}
+              </Typography>
 
-
-              {/* Check out */}
-
-              <Box
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  background: "#11161F",
-                  border:
-                    "1px solid #2A3441",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    mb: 1,
-                  }}
-                >
-                  <CalendarMonth
-                    sx={{
-                      color: "#8B5CF6",
-                      fontSize: 20,
-                    }}
-                  />
-
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#8F98A8",
-                    }}
-                  >
-                    Check-out
-                  </Typography>
-                </Box>
-
-                <Typography
-                  fontWeight={700}
-                  sx={{
-                    color: "#fff",
-                  }}
-                >
-                  {checkOut ||
-                    booking.check_out}
-                </Typography>
-              </Box>
-
+              <Typography sx={{ color: isConfirmed ? "#22C55E" : "#F59E0B" }}>
+                Payment: {isConfirmed ? "Successful" : "Processing"}
+              </Typography>
             </Box>
-
-          </CardContent>
-
-
-          <Divider
-            sx={{
-              borderColor: "#2A3441",
-            }}
-          />
-
-
-          {/* ========================================== */}
-          {/* PAYMENT */}
-          {/* ========================================== */}
-
-          <CardContent
-            sx={{
-              p: {
-                xs: 2.5,
-                md: 3,
-              },
-            }}
-          >
-
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 2,
-              }}
-            >
-
-              <Box>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: "#8F98A8",
-                  }}
-                >
-                  Payment status
-                </Typography>
-
-                <Typography
-                  sx={{
-                    color: "#22C55E",
-                    fontWeight: 700,
-                    mt: 0.5,
-                  }}
-                >
-                  ✓ Successful
-                </Typography>
-
-                {paymentMethod && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#667080",
-                    }}
-                  >
-                    Paid via{" "}
-                    {paymentMethod.toUpperCase()}
-                  </Typography>
-                )}
-              </Box>
-
-
-              <Box
-                sx={{
-                  textAlign: "right",
-                }}
-              >
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: "#8F98A8",
-                  }}
-                >
-                  Total paid
-                </Typography>
-
-                <Typography
-                  variant="h5"
-                  fontWeight={800}
-                  sx={{
-                    color: "#fff",
-                  }}
-                >
-                  ₹
-                  {Number(
-                    displayTotal
-                  ).toLocaleString()}
-                </Typography>
-              </Box>
-
-            </Box>
-
-          </CardContent>
-
-        </Card>
-
-
-        {/* ============================================== */}
-        {/* EMAIL MESSAGE */}
-        {/* ============================================== */}
-
-        <Box
-          sx={{
-            mt: 3,
-            p: 2.5,
-            borderRadius: 3,
-            background:
-              "rgba(34,197,94,0.07)",
-            border:
-              "1px solid rgba(34,197,94,0.2)",
-            textAlign: "center",
-          }}
-        >
-
-          <Typography
-            sx={{
-              color: "#B8C0CC",
-            }}
-          >
-            📧 Your booking confirmation has been sent to your registered email address.
-          </Typography>
-
-        </Box>
-
-
-        {/* ============================================== */}
-        {/* ACTIONS */}
-        {/* ============================================== */}
-
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: {
-              xs: "column",
-              sm: "row",
-            },
-            justifyContent: "center",
-            gap: 2,
-            mt: 4,
-          }}
-        >
+          )}
 
           <Button
             variant="contained"
-            endIcon={<ArrowForward />}
-            onClick={() =>
-              navigate("/my-bookings")
-            }
+            onClick={() => navigate("/my-bookings")}
             sx={{
-              minHeight: 52,
               px: 4,
+              height: 50,
               borderRadius: 2,
               fontWeight: 700,
               textTransform: "none",
-              background:
-                "linear-gradient(135deg, #6C63FF, #8B5CF6)",
-              "&:hover": {
-                background:
-                  "linear-gradient(135deg, #7C73FF, #9B6CFF)",
-              },
+              background: "linear-gradient(135deg, #6C63FF, #8B5CF6)",
             }}
           >
             View My Bookings
           </Button>
-
-
-          <Button
-            variant="outlined"
-            onClick={() =>
-              navigate("/hotels")
-            }
-            sx={{
-              minHeight: 52,
-              px: 4,
-              borderRadius: 2,
-              fontWeight: 700,
-              textTransform: "none",
-              color: "#B8C0CC",
-              borderColor: "#2A3441",
-              "&:hover": {
-                borderColor: "#6C63FF",
-                color: "#fff",
-              },
-            }}
-          >
-            Explore More Hotels
-          </Button>
-
-        </Box>
-
-      </Box>
+        </CardContent>
+      </Card>
     </Box>
   );
 }

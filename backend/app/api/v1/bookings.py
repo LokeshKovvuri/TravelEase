@@ -2,7 +2,6 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
-    BackgroundTasks,
 )
 from sqlalchemy.orm import Session
 
@@ -17,7 +16,6 @@ from app.schemas.booking import (
 )
 
 from app.services.booking_service import BookingService
-from app.services.email_service import EmailService
 
 
 router = APIRouter(
@@ -36,7 +34,6 @@ router = APIRouter(
 )
 def create_booking(
     booking: BookingCreate,
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -46,16 +43,6 @@ def create_booking(
             db=db,
             user_id=current_user.id,
             data=booking,
-        )
-
-        # ----------------------------------------------------
-        # Send confirmation email
-        # ----------------------------------------------------
-        background_tasks.add_task(
-            EmailService.send_booking_confirmation,
-            current_user.email,
-            current_user.first_name,
-            new_booking,
         )
 
         return new_booking

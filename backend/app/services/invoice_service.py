@@ -40,37 +40,70 @@ class InvoiceService:
             )
 
         # --------------------------------------------------------
-        # Get related data
+        # Get user
         # --------------------------------------------------------
 
         user = booking.user
 
-        room = booking.room
+        if user is None:
+            raise Exception(
+                "Customer information not found"
+            )
 
-        hotel = (
-            room.hotel
-            if room
-            else None
+        # --------------------------------------------------------
+        # Determine booking type
+        # --------------------------------------------------------
+
+        is_flight_booking = (
+            booking.flight_id is not None
         )
 
-        if room is None:
+        is_hotel_booking = (
+            booking.room_id is not None
+        )
+
+        if is_flight_booking and is_hotel_booking:
             raise Exception(
-                "Room information not found"
+                "Invalid booking: both flight and room are assigned"
             )
 
-        if hotel is None:
+        if not is_flight_booking and not is_hotel_booking:
             raise Exception(
-                "Hotel information not found"
+                "Invalid booking: no flight or room assigned"
             )
 
         # --------------------------------------------------------
-        # Calculate nights
+        # Related objects
         # --------------------------------------------------------
 
-        nights = (
-            booking.check_out
-            - booking.check_in
-        ).days
+        flight = None
+        room = None
+        hotel = None
+
+        if is_flight_booking:
+
+            flight = booking.flight
+
+            if flight is None:
+                raise Exception(
+                    "Flight information not found"
+                )
+
+        else:
+
+            room = booking.room
+
+            if room is None:
+                raise Exception(
+                    "Room information not found"
+                )
+
+            hotel = room.hotel
+
+            if hotel is None:
+                raise Exception(
+                    "Hotel information not found"
+                )
 
         # --------------------------------------------------------
         # Invoice number
@@ -180,6 +213,12 @@ class InvoiceService:
             "%d %b %Y"
         )
 
+        booking_type = (
+            "FLIGHT"
+            if is_flight_booking
+            else "HOTEL"
+        )
+
         invoice_info = [
             [
                 Paragraph(
@@ -209,11 +248,29 @@ class InvoiceService:
                     normal_style,
                 ),
                 Paragraph(
+                    "<b>Booking Type</b>",
+                    normal_style,
+                ),
+                Paragraph(
+                    booking_type,
+                    normal_style,
+                ),
+            ],
+            [
+                Paragraph(
                     "<b>Status</b>",
                     normal_style,
                 ),
                 Paragraph(
                     booking.status,
+                    normal_style,
+                ),
+                Paragraph(
+                    "<b>Guests / Passengers</b>",
+                    normal_style,
+                ),
+                Paragraph(
+                    str(booking.guests),
                     normal_style,
                 ),
             ],
@@ -375,223 +432,373 @@ class InvoiceService:
         story.append(customer_table)
 
         # ========================================================
+        # FLIGHT DETAILS
+        # ========================================================
+
+        if is_flight_booking:
+
+            story.append(
+                Paragraph(
+                    "Flight Details",
+                    heading_style,
+                )
+            )
+
+            flight_data = [
+                [
+                    Paragraph(
+                        "<b>Airline</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        flight.airline,
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>Flight Number</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        flight.flight_number,
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>From</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        flight.origin,
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>To</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        flight.destination,
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>Departure</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        flight.departure_time.strftime(
+                            "%d %b %Y, %I:%M %p"
+                        ),
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>Arrival</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        flight.arrival_time.strftime(
+                            "%d %b %Y, %I:%M %p"
+                        ),
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>Passengers</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        str(booking.guests),
+                        normal_style,
+                    ),
+                ],
+            ]
+
+            flight_table = Table(
+                flight_data,
+                colWidths=[
+                    35 * mm,
+                    135 * mm,
+                ],
+            )
+
+            flight_table.setStyle(
+                TableStyle(
+                    [
+                        (
+                            "GRID",
+                            (0, 0),
+                            (-1, -1),
+                            0.5,
+                            colors.lightgrey,
+                        ),
+                        (
+                            "BACKGROUND",
+                            (0, 0),
+                            (0, -1),
+                            colors.whitesmoke,
+                        ),
+                        (
+                            "LEFTPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            8,
+                        ),
+                        (
+                            "TOPPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            7,
+                        ),
+                        (
+                            "BOTTOMPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            7,
+                        ),
+                    ]
+                )
+            )
+
+            story.append(flight_table)
+
+        # ========================================================
         # HOTEL DETAILS
         # ========================================================
 
-        story.append(
-            Paragraph(
-                "Hotel Details",
-                heading_style,
+        else:
+
+            story.append(
+                Paragraph(
+                    "Hotel Details",
+                    heading_style,
+                )
             )
-        )
 
-        hotel_data = [
-            [
-                Paragraph(
-                    "<b>Hotel</b>",
-                    normal_style,
-                ),
-                Paragraph(
-                    hotel.name,
-                    normal_style,
-                ),
-            ],
-            [
-                Paragraph(
-                    "<b>Location</b>",
-                    normal_style,
-                ),
-                Paragraph(
-                    f"{hotel.city}, "
-                    f"{hotel.country}",
-                    normal_style,
-                ),
-            ],
-            [
-                Paragraph(
-                    "<b>Address</b>",
-                    normal_style,
-                ),
-                Paragraph(
-                    hotel.address,
-                    normal_style,
-                ),
-            ],
-        ]
-
-        hotel_table = Table(
-            hotel_data,
-            colWidths=[
-                35 * mm,
-                135 * mm,
-            ],
-        )
-
-        hotel_table.setStyle(
-            TableStyle(
+            hotel_data = [
                 [
-                    (
-                        "GRID",
-                        (0, 0),
-                        (-1, -1),
-                        0.5,
-                        colors.lightgrey,
+                    Paragraph(
+                        "<b>Hotel</b>",
+                        normal_style,
                     ),
-                    (
-                        "BACKGROUND",
-                        (0, 0),
-                        (0, -1),
-                        colors.whitesmoke,
+                    Paragraph(
+                        hotel.name,
+                        normal_style,
                     ),
-                    (
-                        "LEFTPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        8,
-                    ),
-                    (
-                        "TOPPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        7,
-                    ),
-                    (
-                        "BOTTOMPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        7,
-                    ),
-                ]
-            )
-        )
-
-        story.append(hotel_table)
-
-        # ========================================================
-        # STAY DETAILS
-        # ========================================================
-
-        story.append(
-            Paragraph(
-                "Stay Details",
-                heading_style,
-            )
-        )
-
-        stay_data = [
-            [
-                Paragraph(
-                    "<b>Room Type</b>",
-                    normal_style,
-                ),
-                Paragraph(
-                    room.room_type,
-                    normal_style,
-                ),
-            ],
-            [
-                Paragraph(
-                    "<b>Room Number</b>",
-                    normal_style,
-                ),
-                Paragraph(
-                    room.room_number,
-                    normal_style,
-                ),
-            ],
-            [
-                Paragraph(
-                    "<b>Check-in</b>",
-                    normal_style,
-                ),
-                Paragraph(
-                    booking.check_in.strftime(
-                        "%d %b %Y"
-                    ),
-                    normal_style,
-                ),
-            ],
-            [
-                Paragraph(
-                    "<b>Check-out</b>",
-                    normal_style,
-                ),
-                Paragraph(
-                    booking.check_out.strftime(
-                        "%d %b %Y"
-                    ),
-                    normal_style,
-                ),
-            ],
-            [
-                Paragraph(
-                    "<b>Nights</b>",
-                    normal_style,
-                ),
-                Paragraph(
-                    str(nights),
-                    normal_style,
-                ),
-            ],
-            [
-                Paragraph(
-                    "<b>Guests</b>",
-                    normal_style,
-                ),
-                Paragraph(
-                    str(booking.guests),
-                    normal_style,
-                ),
-            ],
-        ]
-
-        stay_table = Table(
-            stay_data,
-            colWidths=[
-                35 * mm,
-                135 * mm,
-            ],
-        )
-
-        stay_table.setStyle(
-            TableStyle(
+                ],
                 [
-                    (
-                        "GRID",
-                        (0, 0),
-                        (-1, -1),
-                        0.5,
-                        colors.lightgrey,
+                    Paragraph(
+                        "<b>Location</b>",
+                        normal_style,
                     ),
-                    (
-                        "BACKGROUND",
-                        (0, 0),
-                        (0, -1),
-                        colors.whitesmoke,
+                    Paragraph(
+                        f"{hotel.city}, "
+                        f"{hotel.country}",
+                        normal_style,
                     ),
-                    (
-                        "LEFTPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        8,
+                ],
+                [
+                    Paragraph(
+                        "<b>Address</b>",
+                        normal_style,
                     ),
-                    (
-                        "TOPPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        7,
+                    Paragraph(
+                        hotel.address,
+                        normal_style,
                     ),
-                    (
-                        "BOTTOMPADDING",
-                        (0, 0),
-                        (-1, -1),
-                        7,
-                    ),
-                ]
-            )
-        )
+                ],
+            ]
 
-        story.append(stay_table)
+            hotel_table = Table(
+                hotel_data,
+                colWidths=[
+                    35 * mm,
+                    135 * mm,
+                ],
+            )
+
+            hotel_table.setStyle(
+                TableStyle(
+                    [
+                        (
+                            "GRID",
+                            (0, 0),
+                            (-1, -1),
+                            0.5,
+                            colors.lightgrey,
+                        ),
+                        (
+                            "BACKGROUND",
+                            (0, 0),
+                            (0, -1),
+                            colors.whitesmoke,
+                        ),
+                        (
+                            "LEFTPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            8,
+                        ),
+                        (
+                            "TOPPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            7,
+                        ),
+                        (
+                            "BOTTOMPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            7,
+                        ),
+                    ]
+                )
+            )
+
+            story.append(hotel_table)
+
+            # ----------------------------------------------------
+            # STAY DETAILS
+            # ----------------------------------------------------
+
+            if booking.check_in is None or booking.check_out is None:
+                raise Exception(
+                    "Hotel booking dates are missing"
+                )
+
+            nights = (
+                booking.check_out
+                - booking.check_in
+            ).days
+
+            story.append(
+                Paragraph(
+                    "Stay Details",
+                    heading_style,
+                )
+            )
+
+            stay_data = [
+                [
+                    Paragraph(
+                        "<b>Room Type</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        room.room_type,
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>Room Number</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        room.room_number,
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>Check-in</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        booking.check_in.strftime(
+                            "%d %b %Y"
+                        ),
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>Check-out</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        booking.check_out.strftime(
+                            "%d %b %Y"
+                        ),
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>Nights</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        str(nights),
+                        normal_style,
+                    ),
+                ],
+                [
+                    Paragraph(
+                        "<b>Guests</b>",
+                        normal_style,
+                    ),
+                    Paragraph(
+                        str(booking.guests),
+                        normal_style,
+                    ),
+                ],
+            ]
+
+            stay_table = Table(
+                stay_data,
+                colWidths=[
+                    35 * mm,
+                    135 * mm,
+                ],
+            )
+
+            stay_table.setStyle(
+                TableStyle(
+                    [
+                        (
+                            "GRID",
+                            (0, 0),
+                            (-1, -1),
+                            0.5,
+                            colors.lightgrey,
+                        ),
+                        (
+                            "BACKGROUND",
+                            (0, 0),
+                            (0, -1),
+                            colors.whitesmoke,
+                        ),
+                        (
+                            "LEFTPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            8,
+                        ),
+                        (
+                            "TOPPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            7,
+                        ),
+                        (
+                            "BOTTOMPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            7,
+                        ),
+                    ]
+                )
+            )
+
+            story.append(stay_table)
 
         # ========================================================
         # PAYMENT DETAILS
@@ -706,7 +913,9 @@ class InvoiceService:
         # TOTAL
         # ========================================================
 
-        story.append(Spacer(1, 10))
+        story.append(
+            Spacer(1, 10)
+        )
 
         total_data = [
             [

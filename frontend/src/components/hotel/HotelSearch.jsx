@@ -16,8 +16,6 @@ import {
 
 
 function DateField({ label, value, onChange }) {
-  const [active, setActive] = useState(false);
-
   const displayValue = value
     ? new Date(value + "T00:00:00").toLocaleDateString("en-IN", {
         day: "2-digit",

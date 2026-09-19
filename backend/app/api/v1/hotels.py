@@ -3,10 +3,16 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_admin
 from app.database.session import get_db
 from app.schemas.hotel import HotelCreate, HotelResponse
 from app.services.hotel_service import HotelService
 
+from app.schemas.hotel import (
+    HotelCreate,
+    HotelResponse,
+    NearbyHotelResponse,
+)
 
 router = APIRouter(
     prefix="/api/v1/hotels",
@@ -24,6 +30,7 @@ router = APIRouter(
 )
 def create_hotel(
     hotel: HotelCreate,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     try:
@@ -107,6 +114,46 @@ def search_hotels(
         limit=limit,
     )
 
+# ============================================================
+# GET NEARBY HOTELS
+# ============================================================
+
+@router.get(
+    "/nearby",
+    response_model=list[NearbyHotelResponse],
+)
+
+def get_nearby_hotels(
+    latitude: float = Query(
+        ...,
+        description="User latitude",
+        ge=-90,
+        le=90,
+    ),
+    longitude: float = Query(
+        ...,
+        description="User longitude",
+        ge=-180,
+        le=180,
+    ),
+    radius_km: float = Query(
+        default=25,
+        gt=0,
+        le=200,
+        description="Search radius in kilometers",
+    ),
+    db: Session = Depends(get_db),
+):
+    return HotelService.get_nearby(
+        db=db,
+        latitude=latitude,
+        longitude=longitude,
+        radius_km=radius_km,
+    )
+
+
+
+
 
 # ============================================================
 # GET HOTEL BY ID
@@ -145,6 +192,7 @@ def get_hotel(
 def update_hotel(
     hotel_id: int,
     hotel: HotelCreate,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     updated = HotelService.update(
@@ -171,6 +219,7 @@ def update_hotel(
 )
 def delete_hotel(
     hotel_id: int,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     deleted = HotelService.delete(

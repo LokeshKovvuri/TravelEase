@@ -2,22 +2,26 @@ import axios from "axios";
 
 
 const api = axios.create({
-  baseURL:
-    "http://127.0.0.1:8000/api/v1",
+
+  baseURL: (
+    import.meta.env.VITE_API_BASE_URL ||
+    "http://127.0.0.1:8000/api/v1"
+  ).replace(/\/$/, ""),
 
   headers: {
     "Content-Type":
       "application/json",
   },
+
 });
 
 
 // ============================================================
 // REQUEST INTERCEPTOR
-// Automatically attach JWT
 // ============================================================
 
 api.interceptors.request.use(
+
   (config) => {
 
     const token =
@@ -28,30 +32,40 @@ api.interceptors.request.use(
 
     if (token) {
 
+      config.headers =
+        config.headers || {};
+
       config.headers.Authorization =
         `Bearer ${token}`;
+
     }
 
 
     console.log(
       "API REQUEST:",
       {
-        url: config.url,
+        method:
+          config.method?.toUpperCase(),
 
-        method: config.method,
+        url:
+          config.url,
 
-        hasToken: !!token,
+        hasToken:
+          Boolean(token),
       }
     );
 
 
     return config;
+
   },
 
-
   (error) => {
+
     return Promise.reject(error);
+
   }
+
 );
 
 
@@ -60,25 +74,55 @@ api.interceptors.request.use(
 // ============================================================
 
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
 
+  (response) => {
+
+    return response;
+
+  },
 
   (error) => {
 
-    if (
-      error.response?.status === 401
-    ) {
+    const status =
+      error.response?.status;
+
+
+    if (status === 401) {
 
       console.error(
-        "Authentication failed. JWT token may be missing or expired."
+        "401 Unauthorized:",
+        error.response?.data
       );
+
+
+      // ------------------------------------------------------
+      // Remove invalid token
+      // ------------------------------------------------------
+
+      localStorage.removeItem(
+        "access_token"
+      );
+
+
+      // ------------------------------------------------------
+      // Redirect to login
+      // ------------------------------------------------------
+
+      if (
+        window.location.pathname !== "/"
+      ) {
+
+        window.location.href = "/";
+
+      }
+
     }
 
 
     return Promise.reject(error);
+
   }
+
 );
 
 

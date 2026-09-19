@@ -21,6 +21,9 @@ import {
   Visibility,
   Cancel,
   Payment as PaymentIcon,
+  FlightTakeoff,
+  Download,
+  RateReview,
 } from "@mui/icons-material";
 
 import api from "../services/api";
@@ -108,7 +111,7 @@ function MyBookings() {
 
   const handleViewBooking = (bookingId) => {
     navigate(
-      `/bookings/${bookingId}`
+      `/booking-details/${bookingId}`
     );
   };
 
@@ -161,6 +164,37 @@ function MyBookings() {
       setError(
         err.response?.data?.detail ||
         "Unable to cancel this booking."
+      );
+    }
+  };
+
+
+  // ============================================================
+  // DOWNLOAD INVOICE
+  // ============================================================
+
+  const handleInvoiceDownload = async (bookingId) => {
+    try {
+      setError("");
+
+      const response = await api.get(
+        `/invoices/booking/${bookingId}`,
+        { responseType: "blob" }
+      );
+      const url = window.URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `TEA-Invoice-${String(bookingId).padStart(6, "0")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to download invoice:", err);
+      setError(
+        err.response?.data?.detail ||
+        "Unable to download the invoice."
       );
     }
   };
@@ -428,6 +462,12 @@ function MyBookings() {
                   booking.status ===
                   "CONFIRMED";
 
+                const isFlightBooking = Boolean(
+                  booking.flight_id
+                );
+
+                const canCancel = isPendingPayment;
+
                 return (
 
                   <Card
@@ -490,7 +530,9 @@ function MyBookings() {
                               color: "#fff",
                             }}
                           >
-                            Hotel Booking
+                            {isFlightBooking
+                              ? "Flight Booking"
+                              : "Hotel Booking"}
                           </Typography>
 
 
@@ -563,12 +605,20 @@ function MyBookings() {
                             }}
                           >
 
-                            <CalendarMonth
+                            {isFlightBooking ? (
+                              <FlightTakeoff
+                                sx={{
+                                  color: "#6C63FF",
+                                }}
+                              />
+                            ) : (
+                              <CalendarMonth
                               sx={{
                                 color:
                                   "#6C63FF",
                               }}
-                            />
+                              />
+                            )}
 
                             <Typography
                               variant="caption"
@@ -577,7 +627,9 @@ function MyBookings() {
                                   "#8F98A8",
                               }}
                             >
-                              CHECK-IN
+                              {isFlightBooking
+                                ? "FLIGHT"
+                                : "CHECK-IN"}
                             </Typography>
 
                           </Box>
@@ -589,9 +641,9 @@ function MyBookings() {
                               color: "#fff",
                             }}
                           >
-                            {formatDate(
-                              booking.check_in
-                            )}
+                            {isFlightBooking
+                              ? `Flight #${booking.flight_id}`
+                              : formatDate(booking.check_in)}
                           </Typography>
 
                         </Box>
@@ -626,7 +678,9 @@ function MyBookings() {
                                   "#8F98A8",
                               }}
                             >
-                              CHECK-OUT
+                              {isFlightBooking
+                                ? "BOOKED ON"
+                                : "CHECK-OUT"}
                             </Typography>
 
                           </Box>
@@ -638,9 +692,9 @@ function MyBookings() {
                               color: "#fff",
                             }}
                           >
-                            {formatDate(
-                              booking.check_out
-                            )}
+                            {isFlightBooking
+                              ? formatDate(booking.created_at)
+                              : formatDate(booking.check_out)}
                           </Typography>
 
                         </Box>
@@ -675,7 +729,9 @@ function MyBookings() {
                                   "#8F98A8",
                               }}
                             >
-                              GUESTS
+                              {isFlightBooking
+                                ? "PASSENGERS"
+                                : "GUESTS"}
                             </Typography>
 
                           </Box>
@@ -752,12 +808,21 @@ function MyBookings() {
                         }}
                       >
 
-                        <Hotel
+                        {isFlightBooking ? (
+                          <FlightTakeoff
+                            sx={{
+                              color:
+                                "#6C63FF",
+                            }}
+                          />
+                        ) : (
+                          <Hotel
                           sx={{
                             color:
                               "#6C63FF",
                           }}
-                        />
+                          />
+                        )}
 
 
                         <Typography
@@ -766,14 +831,16 @@ function MyBookings() {
                               "#B8C0CC",
                           }}
                         >
-                          Room ID:{" "}
+                          {isFlightBooking ? "Flight ID:" : "Room ID:"}{" "}
 
                           <strong
                             style={{
                               color: "#fff",
                             }}
                           >
-                            {booking.room_id}
+                            {isFlightBooking
+                              ? booking.flight_id
+                              : booking.room_id}
                           </strong>
 
                         </Typography>
@@ -829,6 +896,46 @@ function MyBookings() {
 
                         )}
 
+                        {isConfirmed && (
+                          <Button
+                            variant="outlined"
+                            startIcon={<Download />}
+                            onClick={() =>
+                              handleInvoiceDownload(booking.id)
+                            }
+                            sx={{
+                              color: "#fff",
+                              borderColor: "#2A3441",
+                              "&:hover": {
+                                borderColor: "#22C55E",
+                                background: "rgba(34,197,94,0.08)",
+                              },
+                            }}
+                          >
+                            Download Invoice
+                          </Button>
+                        )}
+
+                        {isConfirmed && !isFlightBooking && (
+                          <Button
+                            variant="outlined"
+                            startIcon={<RateReview />}
+                            onClick={() =>
+                              navigate(`/reviews?bookingId=${booking.id}`)
+                            }
+                            sx={{
+                              color: "#fff",
+                              borderColor: "#2A3441",
+                              "&:hover": {
+                                borderColor: "#8B7DFF",
+                                background: "rgba(108,99,255,0.08)",
+                              },
+                            }}
+                          >
+                            Write Review
+                          </Button>
+                        )}
+
 
                         {/* -------------------------------- */}
                         {/* VIEW DETAILS */}
@@ -862,10 +969,10 @@ function MyBookings() {
 
 
                         {/* -------------------------------- */}
-                        {/* CANCEL CONFIRMED */}
+                        {/* CANCEL UNPAID HOLD */}
                         {/* -------------------------------- */}
 
-                        {isConfirmed && (
+                        {canCancel && (
 
                           <Button
                             variant="outlined"

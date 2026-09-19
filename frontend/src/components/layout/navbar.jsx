@@ -22,8 +22,6 @@ import {
   Luggage,
 } from "@mui/icons-material";
 
-import { motion } from "framer-motion";
-
 function Navbar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));

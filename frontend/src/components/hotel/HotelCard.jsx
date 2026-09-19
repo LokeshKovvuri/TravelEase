@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 
 import {
+  Favorite,
   FavoriteBorder,
   LocationOn,
   Wifi,
@@ -20,7 +21,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 
-function HotelCard({ hotel }) {
+function HotelCard({ hotel, isSaved = false, onToggleWishlist, saving = false }) {
   const navigate = useNavigate();
 
   const handleViewHotel = () => {
@@ -104,6 +105,9 @@ function HotelCard({ hotel }) {
           {/* Favorite */}
 
           <Button
+            aria-label={isSaved ? `Remove ${hotel.name} from saved stays` : `Save ${hotel.name}`}
+            onClick={() => onToggleWishlist?.(hotel.id)}
+            disabled={saving}
             sx={{
               position: "absolute",
               top: 15,
@@ -115,7 +119,7 @@ function HotelCard({ hotel }) {
 
               borderRadius: "50%",
 
-              color: "#fff",
+              color: isSaved ? "#FF5C8A" : "#fff",
 
               background:
                 "rgba(11,15,23,0.75)",
@@ -129,7 +133,7 @@ function HotelCard({ hotel }) {
               },
             }}
           >
-            <FavoriteBorder />
+            {isSaved ? <Favorite /> : <FavoriteBorder />}
           </Button>
 
           {/* Discount */}

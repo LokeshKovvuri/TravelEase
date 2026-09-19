@@ -176,7 +176,7 @@ function Payment() {
     };
 
     loadBooking();
-  }, [bookingId]);
+  }, [bookingId, stateData.booking]);
 
 
   // ============================================================
@@ -298,9 +298,9 @@ function Payment() {
     0
   );
 
-  const taxes = Math.round(
-    roomPrice * 0.12
-  );
+  // The backend is the price authority. Until tax calculation is configured
+  // server-side, do not display a total that differs from the amount charged.
+  const taxes = 0;
 
   const total =
     roomPrice + taxes;
@@ -366,6 +366,22 @@ function Payment() {
         "Payment successful:",
         response.data
       );
+
+      // Stripe Checkout (and future hosted gateways) collect sensitive
+      // payment data away from this application. The webhook confirms the
+      // booking after the provider reports a successful payment.
+      if (response.data.checkout_url) {
+        window.location.assign(response.data.checkout_url);
+        return;
+      }
+
+      if (response.data.status !== "SUCCESS") {
+        setProcessing(false);
+        setError(
+          "Your payment is still being processed. Please check My Bookings shortly."
+        );
+        return;
+      }
 
       setProcessing(false);
 

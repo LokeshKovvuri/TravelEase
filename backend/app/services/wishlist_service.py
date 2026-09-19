@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -45,10 +46,14 @@ class WishlistService:
             hotel_id=data.hotel_id,
         )
 
-        return WishlistRepository.create(
-            db,
-            wishlist,
-        )
+        try:
+            return WishlistRepository.create(db, wishlist)
+        except IntegrityError as error:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="Hotel already exists in wishlist",
+            ) from error
 
     @staticmethod
     def get_wishlist(

@@ -9,6 +9,7 @@ from fastapi import (
 
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_admin
 from app.database.session import get_db
 
 from app.schemas.bus import (
@@ -38,6 +39,7 @@ router = APIRouter(
 )
 def create_bus(
     bus: BusCreate,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 
@@ -144,6 +146,7 @@ def get_bus(
 def update_bus(
     bus_id: int,
     bus: BusUpdate,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 
@@ -172,6 +175,7 @@ def update_bus(
 )
 def delete_bus(
     bus_id: int,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 

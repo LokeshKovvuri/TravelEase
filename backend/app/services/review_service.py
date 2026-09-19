@@ -10,13 +10,23 @@ from app.schemas.review import ReviewCreate, ReviewUpdate
 class ReviewService:
 
     @staticmethod
-    def create(db: Session, data: ReviewCreate):
+    def create(
+        db: Session,
+        data: ReviewCreate,
+        user_id: int,
+    ):
 
         # Check booking exists
         booking = BookingRepository.get_by_id(db, data.booking_id)
 
         if booking is None:
             raise Exception("Booking not found")
+
+        if booking.user_id != user_id:
+            raise Exception("You are not allowed to review this booking")
+
+        if booking.room_id is None or booking.room is None:
+            raise Exception("Only hotel bookings can be reviewed")
 
         # Booking must be confirmed
         if booking.status != "CONFIRMED":
@@ -32,7 +42,7 @@ class ReviewService:
             raise Exception("Review already exists for this booking")
 
         review = Review(
-            user_id=booking.user_id,
+            user_id=user_id,
             hotel_id=booking.room.hotel_id,
             booking_id=booking.id,
             rating=data.rating,
@@ -68,12 +78,16 @@ class ReviewService:
         db: Session,
         review_id: int,
         data: ReviewUpdate,
+        user_id: int,
     ):
 
         review = ReviewRepository.get_by_id(db, review_id)
 
         if review is None:
             raise Exception("Review not found")
+
+        if review.user_id != user_id:
+            raise Exception("You are not allowed to update this review")
 
         review.rating = data.rating
         review.comment = data.comment
@@ -88,12 +102,19 @@ class ReviewService:
         return review
 
     @staticmethod
-    def delete(db: Session, review_id: int):
+    def delete(
+        db: Session,
+        review_id: int,
+        user_id: int,
+    ):
 
         review = ReviewRepository.get_by_id(db, review_id)
 
         if review is None:
             raise Exception("Review not found")
+
+        if review.user_id != user_id:
+            raise Exception("You are not allowed to delete this review")
 
         hotel_id = review.hotel_id
 

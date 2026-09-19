@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_admin
 from app.database.session import get_db
 from app.schemas.train import (
     TrainCreate,
@@ -22,6 +23,7 @@ router = APIRouter(
 )
 def create_train(
     train: TrainCreate,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 
@@ -95,6 +97,7 @@ def get_train(
 def update_train(
     train_id: int,
     train: TrainUpdate,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 
@@ -117,6 +120,7 @@ def update_train(
 )
 def delete_train(
     train_id: int,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 

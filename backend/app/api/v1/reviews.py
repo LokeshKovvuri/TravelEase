@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.api.dependencies import get_current_user
+from app.models.user import User
 from app.schemas.review import (
     ReviewCreate,
     ReviewUpdate,
@@ -18,10 +20,11 @@ router = APIRouter(
 @router.post("/", response_model=ReviewResponse)
 def create_review(
     review: ReviewCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     try:
-        return ReviewService.create(db, review)
+        return ReviewService.create(db, review, current_user.id)
     except Exception as e:
         raise HTTPException(
             status_code=400,
@@ -54,6 +57,7 @@ def get_review(
 def update_review(
     review_id: int,
     review: ReviewUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     try:
@@ -61,6 +65,7 @@ def update_review(
             db,
             review_id,
             review,
+            current_user.id,
         )
     except Exception as e:
         raise HTTPException(
@@ -72,12 +77,14 @@ def update_review(
 @router.delete("/{review_id}")
 def delete_review(
     review_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     try:
         return ReviewService.delete(
             db,
             review_id,
+            current_user.id,
         )
     except Exception as e:
         raise HTTPException(

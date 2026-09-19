@@ -52,104 +52,68 @@ class EmailService:
 
             smtp.send_message(email)
 
+    # =========================================================
+    # BOOKING CONFIRMATION
+    # =========================================================
+
     @staticmethod
     def send_booking_confirmation(
         to_email: str,
         customer_name: str,
         booking,
     ):
-        # -----------------------------------------
-        # Booking details
-        # -----------------------------------------
 
-        room = booking.room
+        # =====================================================
+        # FLIGHT BOOKING
+        # =====================================================
 
-        hotel = room.hotel if room else None
+        if booking.flight_id is not None:
 
-        hotel_name = (
-            hotel.name
-            if hotel
-            else "TravelEase Hotel"
-        )
+            flight = booking.flight
 
-        hotel_city = (
-            f"{hotel.city}, {hotel.country}"
-            if hotel
-            else "N/A"
-        )
+            if flight is None:
+                raise Exception(
+                    "Flight details not found for booking"
+                )
 
-        hotel_address = (
-            hotel.address
-            if hotel
-            else "N/A"
-        )
+            subject = (
+                f"TravelEase Atlas - "
+                f"Flight Booking #{booking.id} Confirmed"
+            )
 
-        room_type = (
-            room.room_type
-            if room
-            else "Room"
-        )
-
-        nights = (
-            booking.check_out - booking.check_in
-        ).days
-
-        # -----------------------------------------
-        # Email subject
-        # -----------------------------------------
-
-        subject = (
-            f"TravelEase Atlas - "
-            f"Booking #{booking.id} Confirmed"
-        )
-
-        # -----------------------------------------
-        # Email body
-        # -----------------------------------------
-
-        body = f"""
+            body = f"""
 TRAVELEASE ATLAS
-==============================
 
-BOOKING CONFIRMED ✓
+FLIGHT BOOKING CONFIRMED ✓
 
 Hello {customer_name},
 
-Your hotel booking has been successfully
-confirmed.
+Your flight booking has been successfully confirmed.
 
 BOOKING DETAILS
-------------------------------
 
 Booking ID   : TEA-{booking.id:06d}
 Status       : {booking.status}
 
-HOTEL
-------------------------------
+FLIGHT DETAILS
 
-Hotel        : {hotel_name}
-Location     : {hotel_city}
-Address      : {hotel_address}
+Airline      : {flight.airline}
+Flight       : {flight.flight_number}
+From         : {flight.origin}
+To           : {flight.destination}
 
-ROOM
-------------------------------
+Departure    : {flight.departure_time.strftime("%d %b %Y, %I:%M %p")}
+Arrival      : {flight.arrival_time.strftime("%d %b %Y, %I:%M %p")}
 
-Room Type    : {room_type}
-Guests       : {booking.guests}
-Nights       : {nights}
+PASSENGERS
 
-STAY DETAILS
-------------------------------
-
-Check-in     : {booking.check_in.strftime("%d %b %Y")}
-Check-out    : {booking.check_out.strftime("%d %b %Y")}
+Passengers   : {booking.guests}
 
 PAYMENT DETAILS
-------------------------------
 
 Total Price  : ₹{booking.total_price:,.2f}
 
-------------------------------
+---
 
 Thank you for choosing
 TravelEase Atlas (TEA).
@@ -162,9 +126,105 @@ Travel easier.
 TravelEase Atlas
 """
 
-        # -----------------------------------------
-        # Send email
-        # -----------------------------------------
+        # =====================================================
+        # HOTEL BOOKING
+        # =====================================================
+
+        else:
+
+            room = booking.room
+
+            hotel = room.hotel if room else None
+
+            hotel_name = (
+                hotel.name
+                if hotel
+                else "TravelEase Hotel"
+            )
+
+            hotel_city = (
+                f"{hotel.city}, {hotel.country}"
+                if hotel
+                else "N/A"
+            )
+
+            hotel_address = (
+                hotel.address
+                if hotel
+                else "N/A"
+            )
+
+            room_type = (
+                room.room_type
+                if room
+                else "Room"
+            )
+
+            if booking.check_in is None or booking.check_out is None:
+                raise Exception(
+                    "Hotel booking dates are missing"
+                )
+
+            nights = (
+                booking.check_out - booking.check_in
+            ).days
+
+            subject = (
+                f"TravelEase Atlas - "
+                f"Hotel Booking #{booking.id} Confirmed"
+            )
+
+            body = f"""
+TRAVELEASE ATLAS
+
+HOTEL BOOKING CONFIRMED ✓
+
+Hello {customer_name},
+
+Your hotel booking has been successfully confirmed.
+
+BOOKING DETAILS
+
+Booking ID   : TEA-{booking.id:06d}
+Status       : {booking.status}
+
+HOTEL
+
+Hotel        : {hotel_name}
+Location     : {hotel_city}
+Address      : {hotel_address}
+
+ROOM
+
+Room Type    : {room_type}
+Guests       : {booking.guests}
+Nights       : {nights}
+
+STAY DETAILS
+
+Check-in     : {booking.check_in.strftime("%d %b %Y")}
+Check-out    : {booking.check_out.strftime("%d %b %Y")}
+
+PAYMENT DETAILS
+
+Total Price  : ₹{booking.total_price:,.2f}
+
+---
+
+Thank you for choosing
+TravelEase Atlas (TEA).
+
+Have a wonderful journey! 🌍✈️
+
+Travel smarter.
+Travel easier.
+
+TravelEase Atlas
+"""
+
+        # =====================================================
+        # SEND EMAIL
+        # =====================================================
 
         EmailService.send_email(
             to_email=to_email,

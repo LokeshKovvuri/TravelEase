@@ -7,6 +7,7 @@ from fastapi import (
 
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import require_admin
 from app.database.session import get_db
 
 from app.schemas.cab import (
@@ -36,6 +37,7 @@ router = APIRouter(
 )
 def create_cab(
     cab: CabCreate,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 
@@ -141,6 +143,7 @@ def get_cab(
 def update_cab(
     cab_id: int,
     cab: CabUpdate,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 
@@ -169,6 +172,7 @@ def update_cab(
 )
 def delete_cab(
     cab_id: int,
+    _: object = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
 
